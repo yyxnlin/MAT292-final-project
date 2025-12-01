@@ -1,6 +1,17 @@
 import pandas as pd
 
-def balance_classes(waves_df, max_per_class=300):
+def balance_classes(waves_df, max_per_class, method="undersample_normal"):
+    """
+    method = "undersample_normal" or "oversample_abnormal"
+    """
+
+    if method == "undersample_normal":
+        return balance_classes_undersample(waves_df, max_per_class)
+    
+    elif method == "oversample_abnormal":
+        return balance_classes_bootstrap(waves_df, max_per_class)
+    
+def balance_classes_undersample(waves_df, max_per_class=300):
     """
     Balance the number of normal ('N') and abnormal beats in the DataFrame, capped at 300 entries each.
     """

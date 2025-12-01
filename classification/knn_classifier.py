@@ -1,0 +1,48 @@
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import LeaveOneGroupOut
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
+def prepare_knn_data(df, features=['a','b','tau','I','v0','w0'], label_col='symbol_binary'):
+    """
+    Prepare features and labels for KNN classification.
+    """
+    df_knn = df.dropna(subset=features + [label_col]).copy()
+    df_knn['label'] = df_knn[label_col].map({'N':0, 'not N':1})
+    
+    X = df_knn[features].values
+    y = df_knn['label'].values
+    groups = df_knn['recording'].values
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    return X_scaled, y, groups, df_knn
+
+def knn_leave_one_group_out(X, y, groups, n_neighbors=5):
+    """
+    Run KNN with Leave-One-Group-Out cross-validation.
+    """
+    logo = LeaveOneGroupOut()
+    y_preds = np.zeros_like(y)
+    
+    for train_idx, test_idx in logo.split(X, y, groups=groups):
+        X_train, X_test = X[train_idx], X[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
+
+        knn = KNeighborsClassifier(n_neighbors=n_neighbors)
+        knn.fit(X_train, y_train)
+        y_preds[test_idx] = knn.predict(X_test)
+    
+    return y_preds
+
+def classification_metrics(y_true, y_pred, target_names=['N','not N']):
+    """
+    return accuracy, classification report, and confusion matrix.
+    """
+    acc = accuracy_score(y_true, y_pred)
+    report = classification_report(y_true, y_pred, target_names=target_names)
+    cm = confusion_matrix(y_true, y_pred, normalize='true')
+    return acc, report, cm

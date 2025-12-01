@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
+import seaborn as sns
 
 def plot_counts_stacked(
     df: pd.DataFrame,
@@ -142,4 +143,17 @@ def plot_single_beat(ecg, row, output_folder="plots", filename="ecg_beat", fs=36
     plt.grid(True)
     plt.tight_layout()
     plt.savefig(filepath, dpi=300)
+    plt.show()
+
+
+
+
+def plot_confusion_matrix(cm, labels=['N','not N'], title="Normalized Confusion Matrix"):
+    plt.figure(figsize=(5,4))
+    sns.heatmap(cm, annot=True, fmt=".2f", cmap="Blues",
+                xticklabels=labels,
+                yticklabels=labels)
+    plt.title(title)
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
     plt.show()
