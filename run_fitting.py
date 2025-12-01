@@ -11,94 +11,38 @@ from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
 from fhn.simulation import fit_fhn_to_segment, simulate_fhn, loss
 from fhn.ecg_processing import detect_waves, attach_symbols
+from fhn.fhn_processing import preprocess_waves, fit_beats
 from utils.balancing import balance_classes, balance_classes_bootstrap
 from utils.data_filtering import filter_low_loss
 from fhn.metrics import compute_metrics
 from fhn.plots import plot_ecg_beats, plot_single_beat
-
-def run_file(ecg, annotations, prefix, fs=360):
-    # get waves df
-    count = 0
-
-    waves_df, _ = detect_waves(ecg, fs)
-    waves_df.to_parquet(f"waves/{prefix}_waves.parquet")
-
-    waves_df = waves_df.replace("", np.nan).dropna(how="any")
-    for c in ["ECG_Q_Peaks", "ECG_S_Peaks", "ECG_P_Onsets", "ECG_T_Offsets"]:
-        if c in waves_df.columns:
-            waves_df[c] = pd.to_numeric(waves_df[c], errors="coerce")
+from classification.knn_classifier import *
 
 
-    # select sample of waves to run fhn on
-    waves_df = attach_symbols(waves_df, annotations)
+def process_record(number, ekg_dict, ann_dict, data_folder="data", output_folder="output3", max_per_class=300):
+    ekg_path = os.path.join(data_folder, ekg_dict[number])
+    ann_path = os.path.join(data_folder, ann_dict[number])
 
-    # waves_df.to_parquet("kdfjdisfjisfjsfjdsijds.parquet")
-    waves_bal, counts = balance_classes_bootstrap(waves_df)
+    df = pd.read_csv(ekg_path)
+    ecg = df["MLII"].values if "MLII" in df.columns else df.iloc[:, 1].values
+    annotations = pd.read_csv(ann_path)
 
-    print(counts)
-    results = []
+    waves_df, rpeaks = preprocess_waves(ecg, annotations)
+    waves_bal, counts = balance_classes_bootstrap(waves_df, max_per_class=max_per_class)
+    fhn_df = fit_beats(waves_bal, ecg)
 
-    # test plotting
-    # for _, row in tqdm(waves_bal.iterrows(), total=len(waves_bal), desc="waves_bal iteration:"):
-        # if (count < 10):
-        #     print(row["ECG_Q_Peaks"], row["ECG_S_Peaks"], row["rpeak"], row["symbol"])
-        #     plot_single_beat(ecg, row, output_folder="plots", filename=f"ecg_{prefix}_beat_{count}")
-        #     count += 1
+    # plot_single_beat(ecg, waves_bal.iloc[0], output_folder="plots", filename=f"ecg_{number}_beat_0")
 
-    for _, row in tqdm(waves_bal.iterrows(), total=len(waves_bal), desc="Fitting FHN"):
-        if pd.isna(row["ECG_Q_Peaks"]) or pd.isna(row["ECG_S_Peaks"]):
-            continue
-        q_idx, s_idx = int(row["ECG_Q_Peaks"]), int(row["ECG_S_Peaks"])
-        if s_idx <= q_idx:
-            continue
-
-        ecg_segment = ecg[q_idx:s_idx+1]
-        if len(ecg_segment) < 3:
-            continue
-
-        # Subsample 10 points
-        indices = np.linspace(0, len(ecg_segment)-1, 10, dtype=int)
-        ecg_sub, t_sub = ecg_segment[indices], np.arange(len(ecg_segment))[indices]
-
-        res = fit_fhn_to_segment(ecg_sub, t_sub)
-        if res is None:
-            continue
-
-        a, b, tau, I, v0, w0 = res.x
-        pred = simulate_fhn(res.x, t_sub)
-        metrics = compute_metrics(ecg_sub, pred)
-
-        qrs_width = row["ECG_S_Peaks"] - row["ECG_Q_Peaks"]
-        pt_width = (row["ECG_T_Offsets"] - row["ECG_P_Onsets"]
-                    if pd.notna(row["ECG_P_Onsets"]) and pd.notna(row["ECG_T_Offsets"]) else np.nan)
-
-        results.append({
-            "qrs_width": qrs_width,
-            "pt_width": pt_width,
-            "a": a,
-            "b": b,
-            "tau": tau,
-            "I": I,
-            "v0": v0,
-            "w0": w0,
-            "symbol": row["symbol"],
-            "loss": loss(res.x, t_sub, ecg_sub),
-            **metrics
-        })
-
-        
-
-
-    # plot_ecg_beats(ecg, rpeaks, waves_df, filename=f"ecg_{prefix}")
-    fhn_df = pd.DataFrame(results)
-    print(f"Fitted {len(fhn_df)} beats for {prefix}.")
-    return fhn_df
+    output_path = os.path.join(output_folder, f"{number}_results.parquet")
+    fhn_df.to_parquet(output_path)
+    print(f"Finished {number}")
 
 
 if __name__ == "__main__":
     log_file = "error_log.txt"
     DATA_FOLDER = "data"
     OUTPUT_FOLDER = "output3"
+    MAX_PER_CLASS = 300
 
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
     files = os.listdir(DATA_FOLDER)
@@ -125,29 +69,9 @@ if __name__ == "__main__":
     # numbers = sorted(set(ekg_dict.keys()) & set(ann_dict.keys()))
 
     for number in tqdm(numbers, desc="Processing files"):
-        print(f"Processing number: {number}")
-        output_path = os.path.join(OUTPUT_FOLDER, f"{number}_results.parquet")
-
-        # Skip if output file already exists
-        if os.path.exists(output_path):
-            print(f"Skipping {number}: results already exist.")
-            continue
-
         try:
-            ekg_path = os.path.join(DATA_FOLDER, ekg_dict[number])
-            ann_path = os.path.join(DATA_FOLDER, ann_dict[number])
-
-            df = pd.read_csv(ekg_path)
-            ecg = df["MLII"].values if "MLII" in df.columns else df.iloc[:, 1].values
-            annotations = pd.read_csv(ann_path)
-
-            fhn_df = run_file(ecg, annotations, number)
-
-            fhn_df.to_parquet(output_path)
-            print(f"Finished {number}")
-
+            process_record(number, ekg_dict, ann_dict, DATA_FOLDER, OUTPUT_FOLDER, max_per_class=MAX_PER_CLASS)
         except Exception as e:
             with open(log_file, "a") as f:
                 f.write(f"{number}: {repr(e)}\n")
             print(f"Error processing {number}: {e}")
-            continue
