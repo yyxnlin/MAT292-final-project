@@ -11,7 +11,8 @@ from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
 from fhn.simulation import fit_fhn_to_segment, simulate_fhn, loss
 from fhn.ecg_processing import detect_waves, attach_symbols
-from fhn.utils import balance_classes
+from utils.balancing import balance_classes, balance_classes_bootstrap
+from utils.data_filtering import filter_low_loss
 from fhn.metrics import compute_metrics
 from fhn.plots import plot_ecg_beats, plot_single_beat
 
@@ -31,8 +32,8 @@ def run_file(ecg, annotations, prefix, fs=360):
     # select sample of waves to run fhn on
     waves_df = attach_symbols(waves_df, annotations)
 
-    waves_df.to_parquet("kdfjdisfjisfjsfjdsijds.parquet")
-    waves_bal, counts = balance_classes(waves_df)
+    # waves_df.to_parquet("kdfjdisfjisfjsfjdsijds.parquet")
+    waves_bal, counts = balance_classes_bootstrap(waves_df)
 
     print(counts)
     results = []
@@ -97,7 +98,7 @@ def run_file(ecg, annotations, prefix, fs=360):
 if __name__ == "__main__":
     log_file = "error_log.txt"
     DATA_FOLDER = "data"
-    OUTPUT_FOLDER = "output2"
+    OUTPUT_FOLDER = "output3"
 
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
     files = os.listdir(DATA_FOLDER)
@@ -114,7 +115,7 @@ if __name__ == "__main__":
 
     # set1 = [106, 111, 119, 200, 201, 203, 208, 210, 207, 214, 118, 124, 212, 231]
     # set2 = [100, 109, 116, 122, 118, 119, 232]
-    set3 = [100]
+    set3 = [100, 109, 116, 118, 119, 122, 124, 207, 208, 210, 212, 232]
 
     # numbers_to_run = sorted(set(set1 + set2))
     numbers_to_run = sorted(set(set3))
