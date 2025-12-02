@@ -163,10 +163,13 @@ def plot_confusion_matrix(cm, labels=['N','not N'], output_folder="plots", title
 
 
     
-def plot_tsne_sample_by_symbol(df, features, output_folder, sample_size=1000):
+def plot_tsne_sample_by_symbol(df, output_folder, max_sample_size=1000, features=None):
+    if features is None:
+        features = ['a','b','tau','I','v0','w0']
+
     # --- Random subsample (without replacement) ---
-    if len(df) > sample_size:
-        df = df.sample(n=sample_size, random_state=42)
+    if len(df) > max_sample_size:
+        df = df.sample(n=max_sample_size, random_state=42)
     X = df[features].values
     
     scaler = StandardScaler()

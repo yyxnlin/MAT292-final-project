@@ -11,7 +11,7 @@ from utils.data_filtering import filter_df_by_threshold, categorize_symbols
 from utils.file_utils import build_record_dicts
 from fhn.data_statistics import get_col_counts
 from fhn.metrics import compute_metrics
-from fhn.plots import plot_ecg_beats, plot_single_beat, plot_confusion_matrix, plot_counts_stacked
+from fhn.plots import plot_ecg_beats, plot_single_beat, plot_confusion_matrix, plot_counts_stacked, plot_tsne_sample_by_symbol
 from classification.knn_classifier import *
 
 
@@ -109,6 +109,10 @@ def run_balance(data_dir, max_per_class, method, category_map):
                                                 method=method)
     balanced_waves_df.to_parquet(f"{data_dir}/all_fhn_data_filtered_balanced.parquet")
 
+def run_filtered_fhn_stats(data_dir, plots_dir):
+    all_fhn_data_filtered_df = pd.read_parquet(f"{data_dir}/all_fhn_data_raw.parquet")
+    plot_tsne_sample_by_symbol(all_fhn_data_filtered_df, plots_dir, max_sample_size=1000)
+
 def run_model(data_dir, plot_folder, class_names ,label_col="symbol_categorized"):
     print(class_names)
     balanced_waves_df = pd.read_parquet(f"{data_dir}/all_fhn_data_filtered_balanced.parquet")
@@ -136,6 +140,7 @@ def main():
         "binary": {"N": ["N"]},
         "N/LRB": {"N": ["N"], "LRB": ["L", "R", "B"]},
         "N/L": {"N": ["N"], "L": ["L"]},
+        "N/L/R/A": {"N": ["N"], "L/R": ["L", "R"], "A":["A"]},
     }
     VALID_CLASSIFICATION_TYPES = list(CATEGORY_MAPS.keys())
 
@@ -144,7 +149,7 @@ def main():
     parser = argparse.ArgumentParser(description="ECG Classification Pipeline")
 
     parser.add_argument("--step", type=str, required=True, nargs="+",
-                        choices=["data_stats", "combine", "fhn", "filter", "balance", "model"])
+                        choices=["data_stats", "combine", "fhn", "filter", "filtered_fhn_stats", "balance", "model"])
 
     parser.add_argument("--data_folder", type=str, default="data")
     parser.add_argument("--output_folder", type=str, default="output")
@@ -184,10 +189,15 @@ def main():
                 args.input, 
                 args.output)
 
+    
     if "filter" in args.step:
         run_filter(args.output_folder,
                    args.loss_threshold, 
                    args.r2_threshold)
+        
+    if "filtered_fhn_stats" in args.step:
+        run_filtered_fhn_stats(args.output_folder,
+                args.plots_folder)
         
     if "balance" in args.step:
         run_balance(args.output_folder,
@@ -201,6 +211,7 @@ def main():
                   class_names=list(category_map.keys())+["Other"],
                   label_col="symbol_categorized")
 
+    
 
 if __name__ == "__main__":
     main()

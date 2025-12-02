@@ -22,17 +22,3 @@ def get_col_counts(files: List[str], target_col="symbol"):
             counts_df.iloc[i][sym] = val
 
     return symbols_set, counts_df
-
-
-# if __name__ == "__main__":
-#     # get all files in annotations folder in the format of xxx_annotations_1.csv
-#     folder_path = "data/"
-#     pattern = os.path.join(folder_path, "*_annotations_1*.csv")
-
-#     files = glob.glob(pattern)
-#     files.sort()
-
-#     _, counts_df = get_col_counts(files)
-#     plot_counts_stacked(counts_df)
-
-
