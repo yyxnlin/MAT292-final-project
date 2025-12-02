@@ -3,6 +3,8 @@ import numpy as np
 import os
 import pandas as pd
 import seaborn as sns
+from sklearn.manifold import TSNE
+from sklearn.preprocessing import StandardScaler
 
 def plot_counts_stacked(
     df: pd.DataFrame,
@@ -148,7 +150,7 @@ def plot_single_beat(ecg, row, output_folder="plots", filename="ecg_beat", fs=36
 
 
 
-def plot_confusion_matrix(cm, labels=['N','not N'], title="Normalized Confusion Matrix"):
+def plot_confusion_matrix(cm, labels=['N','not N'], output_folder="plots", title="Normalized Confusion Matrix"):
     plt.figure(figsize=(5,4))
     sns.heatmap(cm, annot=True, fmt=".2f", cmap="Blues",
                 xticklabels=labels,
@@ -156,4 +158,47 @@ def plot_confusion_matrix(cm, labels=['N','not N'], title="Normalized Confusion 
     plt.title(title)
     plt.xlabel("Predicted")
     plt.ylabel("True")
+    plt.savefig(f"{output_folder}/confusion_matrix.png", dpi=300)
+    plt.show()
+
+
+    
+def plot_tsne_sample_by_symbol(df, features, output_folder, sample_size=1000):
+    # --- Random subsample (without replacement) ---
+    if len(df) > sample_size:
+        df = df.sample(n=sample_size, random_state=42)
+    X = df[features].values
+    
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # --- Run t-SNE ---
+    tsne = TSNE(n_components=2, perplexity=30, learning_rate='auto', init='pca', random_state=42)
+    tsne_coords = tsne.fit_transform(X_scaled)
+
+    # --- Build plot dataframe ---
+    plot_df = pd.DataFrame({
+        "tsne1": tsne_coords[:,0],
+        "tsne2": tsne_coords[:,1],
+        "symbol": df["symbol"].values
+    })
+
+    # --- Plot ---
+    plt.figure(figsize=(10, 8))
+    for sym in plot_df["symbol"].unique():
+        mask = plot_df["symbol"] == sym
+        plt.scatter(
+            plot_df.loc[mask, "tsne1"],
+            plot_df.loc[mask, "tsne2"],
+            label=sym,
+            alpha=0.7,
+            s=20
+        )
+
+    plt.title("t-SNE of FHN Features Colored by Symbol")
+    plt.xlabel("t-SNE 1")
+    plt.ylabel("t-SNE 2")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{output_folder}/tsne.png", dpi=300)
     plt.show()

@@ -55,6 +55,9 @@ def knn_leave_one_group_out(X, y, groups, n_neighbors=5):
     y_preds = np.zeros_like(y)
     
     for train_idx, test_idx in logo.split(X, y, groups=groups):
+        # left_out_group = groups[test_idx][0]
+        # print(f"Leaving out group: {left_out_group}, size={len(test_idx)}")
+                                                           
         X_train, X_test = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
 

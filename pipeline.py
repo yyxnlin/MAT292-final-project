@@ -20,7 +20,7 @@ def run_data_stats(data_folder, output_folder):
 
     filenames = ekg_dict.values()
     files = [os.path.join(data_folder, f) for f in filenames]
-    
+
     _, counts_df = get_col_counts(files)
     plot_counts_stacked(counts_df, output_folder=output_folder)
 
@@ -99,7 +99,7 @@ def run_balance(data_dir, max_per_class, method):
     balanced_waves_df, counts = balance_classes(fhn_df_filtered, max_per_class=max_per_class, method=method)
     balanced_waves_df.to_parquet(f"{data_dir}/all_fhn_data_filtered_balanced.parquet")
 
-def run_model(data_dir, label_col):
+def run_model(data_dir, output_folder, label_col):
     balanced_waves_df = pd.read_parquet(f"{data_dir}/all_fhn_data_filtered_balanced.parquet")
 
     features_fhn = ['a', 'b', 'tau', 'I', 'v0', 'w0']
@@ -112,7 +112,7 @@ def run_model(data_dir, label_col):
 
     y_preds = knn_leave_one_group_out(X_scaled, y, groups)
     acc, report, cm = classification_metrics(y, y_preds, target_names)
-    plot_confusion_matrix(cm, labels = target_names)
+    plot_confusion_matrix(cm, labels = target_names, output_folder=output_folder)
     print(f"Accuracy: {acc:.4f}")
     print(report)
 
@@ -142,24 +142,24 @@ def main():
     if args.step == "data_stats":
         run_data_stats(args.data_folder, args.plots_folder)
 
-    elif args.step == "combine":
+    if args.step == "combine":
         run_combine(args.data_folder,
                     args.output_folder, args.log_file)
 
-    elif args.step == "fhn":
+    if args.step == "fhn":
         run_fhn(args.data_folder, args.output_folder,
                 args.input, args.output)
 
-    elif args.step == "filter":
+    if args.step == "filter":
         run_filter(args.output_folder,
                    args.loss_threshold, args.r2_threshold)
         
-    elif args.step == "balance":
+    if args.step == "balance":
         run_balance(args.output_folder,
                     args.max_per_class, args.method)
 
-    elif args.step == "model":
-        run_model(args.output_folder, args.classification_type)
+    if args.step == "model":
+        run_model(args.output_folder, args.classification_type, args.plots_folder)
 
 
 if __name__ == "__main__":
