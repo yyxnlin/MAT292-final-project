@@ -9,9 +9,20 @@ from fhn.fhn_processing import preprocess_waves, fit_beats, process_record
 from utils.balancing import balance_classes
 from utils.data_filtering import filter_df_by_threshold
 from utils.file_utils import build_record_dicts
+from fhn.data_statistics import get_col_counts
 from fhn.metrics import compute_metrics
-from fhn.plots import plot_ecg_beats, plot_single_beat, plot_confusion_matrix
+from fhn.plots import plot_ecg_beats, plot_single_beat, plot_confusion_matrix, plot_counts_stacked
 from classification.knn_classifier import *
+
+
+def run_data_stats(data_folder, output_folder):
+    ekg_dict, _ = build_record_dicts(data_folder)
+
+    filenames = ekg_dict.values()
+    files = [os.path.join(data_folder, f) for f in filenames]
+    
+    _, counts_df = get_col_counts(files)
+    plot_counts_stacked(counts_df, output_folder=output_folder)
 
 
 def run_combine(data_folder, output_folder, log_file):
@@ -110,10 +121,11 @@ def main():
     parser = argparse.ArgumentParser(description="ECG Classification Pipeline")
 
     parser.add_argument("--step", type=str, required=True,
-                        choices=["combine", "fhn", "filter", "balance", "model"])
+                        choices=["data_stats", "combine", "fhn", "filter", "balance", "model"])
 
     parser.add_argument("--data_folder", type=str, default="data")
     parser.add_argument("--output_folder", type=str, default="output")
+    parser.add_argument("--plots_folder", type=str, default="plots")
     parser.add_argument("--log_file", type=str, default="error_log.txt")
 
     parser.add_argument("--max_per_class", type=int, default=None)
@@ -127,7 +139,10 @@ def main():
 
     args = parser.parse_args()
 
-    if args.step == "combine":
+    if args.step == "data_stats":
+        run_data_stats(args.data_folder, args.plots_folder)
+
+    elif args.step == "combine":
         run_combine(args.data_folder,
                     args.output_folder, args.log_file)
 

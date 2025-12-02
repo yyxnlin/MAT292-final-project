@@ -3,7 +3,7 @@ import glob
 import os
 from typing import List
 
-def get_col_counts(files: List[str], target_col="annotation_symbol"):
+def get_col_counts(files: List[str], target_col="symbol"):
     counts_list = []
     symbols_set = set()
 
