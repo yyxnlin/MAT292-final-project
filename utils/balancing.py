@@ -14,13 +14,17 @@ def balance_classes(waves_df, max_per_class, method="undersample_normal"):
     elif method == "smote":
         return balance_classes_smote(waves_df, max_per_class)
     
-def balance_classes_undersample(waves_df, max_per_class=300):
+def balance_classes_undersample(waves_df, max_per_class=None):
     """
     Balance the number of normal ('N') and abnormal beats in the DataFrame, capped at 300 entries each.
     """
     normal = waves_df[waves_df["symbol"] == "N"]
     abnormal = waves_df[waves_df["symbol"] != "N"]
-    n_samples = min(len(normal), len(abnormal), max_per_class)
+
+    if (max_per_class != None):
+        n_samples = min(len(normal), len(abnormal), max_per_class)
+    else:
+        n_samples = min(len(normal), len(abnormal))
     normal_sample = normal.sample(n=n_samples, random_state=0)
     abnormal_sample = abnormal.sample(n=n_samples, random_state=0)
 
@@ -30,7 +34,7 @@ def balance_classes_undersample(waves_df, max_per_class=300):
     return balanced_df, counts
 
 
-def balance_classes_bootstrap(waves_df, max_per_class=300):
+def balance_classes_bootstrap(waves_df, max_per_class=None):
     """
     Balance the number of normal ('N') and abnormal beats by bootstrapping the minority class,
     capped at max_per_class entries per class.
@@ -43,7 +47,10 @@ def balance_classes_bootstrap(waves_df, max_per_class=300):
     abnormal = waves_df[waves_df["symbol"] != "N"]
 
     # Determine target number per class
-    target_samples = min(len(normal) + len(abnormal), max_per_class)
+    if (max_per_class != None):
+        target_samples = min(len(normal), len(abnormal), max_per_class)
+    else:
+        target_samples = min(len(normal), len(abnormal))
 
     # Oversample minority class
     if len(normal) < len(abnormal):
