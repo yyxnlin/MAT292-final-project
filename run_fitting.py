@@ -57,82 +57,80 @@ def run_knn(df, label_col):
 if __name__ == "__main__":
     log_file = "error_log.txt"
     DATA_FOLDER = "data"
-    OUTPUT_FOLDER = "output_global_1"
-    MAX_PER_CLASS = 100
+    OUTPUT_FOLDER = "output_global_2"
+    MAX_PER_CLASS = None
 
     LOSS_THRESHOLD = 0.3
     R2_THRESHOLD = 0.5
 
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-    set3 = [100, 109, 116, 118, 119, 122, 124, 207, 208, 210, 212, 232]
-    records_to_run = sorted(set3)
-
     ekg_dict, ann_dict = build_record_dicts(DATA_FOLDER)
 
     # ------------------------ COMBINING ALL WAVES ------------------------
+    all_waves = []
 
-    # all_waves = []
+    for number in tqdm(sorted(ekg_dict.keys()), desc="Processing all records"):
+        try:
+            waves = process_record(number, ekg_dict, ann_dict, DATA_FOLDER)
+            all_waves.append(waves)
+        except Exception as e:
+            with open(log_file, "a") as f:
+                f.write(f"{number}: {repr(e)}\n")
+            print(f"Error processing {number}: {e}")
 
-    # for number in tqdm(records_to_run):
-    #     try:
-    #         waves = process_record(number, ekg_dict, ann_dict, DATA_FOLDER)
-    #         all_waves.append(waves)
-    #     except Exception as e:
-    #         with open(log_file, "a") as f:
-    #             f.write(f"{number}: {repr(e)}\n")
-
-    # all_waves_df = pd.concat(all_waves, ignore_index=True)
-    # all_waves_df.to_parquet(f"{OUTPUT_FOLDER}/all_waves_raw.parquet")
-
-
-    # ------------------------ BALANCING ------------------------
-    # all_waves_df = pd.read_parquet(f"{OUTPUT_FOLDER}/all_waves_raw.parquet")
-
-    # # balancing
-    # # Define your binary or multi-class map
-    # mapping = { 'N':'N' }
-
-    # all_waves_df["symbol_binary"] = all_waves_df["symbol"].map(
-    #     lambda x: 'N' if x=='N' else 'Not N'
-    # )
-
-    # # Apply global balancing
-    # balanced_waves_df, counts = balance_classes(all_waves_df, max_per_class=300, method="undersample_normal")
-    # print(counts)
-
-    # balanced_waves_df.to_parquet("all_waves_balanced.parquet")
+    all_waves_df = pd.concat(all_waves, ignore_index=True)
+    all_waves_df.to_parquet(f"{OUTPUT_FOLDER}/all_waves_raw.parquet")
 
     # ------------------------ FHN ------------------------
-    balanced_waves_df = pd.read_parquet("all_waves_balanced.parquet")
-    # raw_waves_df = pd.read_parquet("output_global_1/all_waves_raw.parquet")
-    
-    df = balanced_waves_df
-    # fit FHN
+    raw_waves_df = pd.read_parquet(f"{OUTPUT_FOLDER}/all_waves_raw.parquet")
+    raw_waves_df["symbol_binary"] = raw_waves_df["symbol"].map(
+        lambda x: 'N' if x=='N' else 'Not N'
+    )
+
     ecg_cache = {}
-    for number in records_to_run:
-        df = pd.read_csv(os.path.join(DATA_FOLDER, ekg_dict[number]))
-        ecg_cache[number] = df["MLII"].values if "MLII" in df.columns else df.iloc[:, 1].values
+    
+    for number in tqdm(sorted(ekg_dict.keys()), desc="Loading ECGs"):
+        try:
+            df = pd.read_csv(os.path.join(DATA_FOLDER, ekg_dict[number]))
+            ecg_cache[number] = df["MLII"].values if "MLII" in df.columns else df.iloc[:, 1].values
+        except Exception as e:
+            with open(log_file, "a") as f:
+                f.write(f"{number} (ECG load error): {repr(e)}\n")
+            print(f"Error loading ECG for record {number}: {e}")
+            continue
 
     fhn_rows = []
 
-    for idx, row in tqdm(df.iterrows(), total=len(df)):
-        ecg = ecg_cache[row["recording"]]
-        fhn_params_df = fit_beats(pd.DataFrame([row]), ecg, keep_cols=["recording", "symbol_binary"])
-        fhn_rows.append(fhn_params_df)
-        
-    fhn_df = pd.concat(fhn_rows, ignore_index=True)
+    for idx, row in tqdm(raw_waves_df.iterrows(), total=len(raw_waves_df), desc="Fitting FHN"):
+        try:
+            ecg = ecg_cache[row["recording"]]
+            fhn_params_df = fit_beats(pd.DataFrame([row]), ecg, keep_cols=["recording", "symbol_binary"])
+            fhn_rows.append(fhn_params_df)
+        except Exception as e:
+            with open(log_file, "a") as f:
+                f.write(f"{row['recording']} (FHN fit error, row {idx}): {repr(e)}\n")
+            print(f"Skipping row {idx} in recording {row['recording']} due to error: {e}")
+            continue
 
-    fhn_df.to_parquet("all_fhn_data_raw.parquet")
+    if fhn_rows:
+        fhn_df = pd.concat(fhn_rows, ignore_index=True)
+        fhn_df.to_parquet(f"{OUTPUT_FOLDER}/all_fhn_data_raw.parquet")
+    else:
+        print("No FHN results to save.")
 
     # ------------------------ FILTER -----------------------------
-    # fhn_df = pd.read_parquet("all_fhn_data.parquet")
-    # fhn_df_filtered = filter_df_by_threshold(fhn_df, "loss", LOSS_THRESHOLD, "r2", R2_THRESHOLD)
-    # fhn_df_filtered.to_parquet("all_fhn_data_filtered.parquet")
+    fhn_df = pd.read_parquet(f"{OUTPUT_FOLDER}/all_fhn_data_raw.parquet")
+    fhn_df_filtered = filter_df_by_threshold(fhn_df, "loss", LOSS_THRESHOLD, "r2", R2_THRESHOLD)
+    fhn_df_filtered.to_parquet(f"{OUTPUT_FOLDER}/all_fhn_data_filtered.parquet")
 
-    # # ------------------------ KNN ------------------------
-    # fhn_df_filtered = pd.read_parquet("all_fhn_data_filtered.parquet")
+    # ------------------------ BALANCING ------------------------
+    fhn_df_filtered = pd.read_parquet(f"{OUTPUT_FOLDER}/all_fhn_data_filtered.parquet")
+    balanced_waves_df, counts = balance_classes(fhn_df_filtered, max_per_class=MAX_PER_CLASS, method="undersample_normal")
+    balanced_waves_df.to_parquet(f"{OUTPUT_FOLDER}/all_fhn_data_filtered_balanced.parquet")
 
-    # run_knn(fhn_df_filtered, "symbol_binary")
+    # ------------------------ KNN ------------------------
+    balanced_waves_df = pd.read_parquet(f"{OUTPUT_FOLDER}/all_fhn_data_filtered_balanced.parquet")
+    run_knn(balanced_waves_df, label_col = "symbol_binary")
 
     
