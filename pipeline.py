@@ -102,7 +102,7 @@ def run_balance(data_dir, max_per_class, method, category_map):
                                                      symbol_col="symbol", 
                                                      new_col="symbol_categorized")
     
-    fhn_df_filtered_categorized.to_parquet("aaaaa.parquet")
+
     balanced_waves_df, counts = balance_classes(waves_df=fhn_df_filtered_categorized, 
                                                 label_col="symbol_categorized",
                                                 max_per_class=max_per_class, 
