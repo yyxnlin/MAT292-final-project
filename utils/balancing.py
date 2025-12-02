@@ -2,133 +2,77 @@ import pandas as pd
 from imblearn.over_sampling import SMOTE
 import numpy as np
 
-def balance_classes(waves_df, max_per_class, method="undersample_normal"):
+def balance_classes(waves_df, label_col, max_per_class, method="undersample"):
     """
-    method = "undersample_normal" or "oversample_abnormal"
+    method = "undersample" or "oversample"
     """
 
-    if method == "undersample_normal":
-        return balance_classes_undersample(waves_df, max_per_class)
-    elif method == "oversample_abnormal":
-        return balance_classes_bootstrap(waves_df, max_per_class)
-    elif method == "smote":
-        return balance_classes_smote(waves_df, max_per_class)
+    if method == "undersample":
+        return balance_classes_undersample(waves_df, label_col, max_per_class)
+    elif method == "oversample":
+        return balance_classes_bootstrap(waves_df, label_col, max_per_class)
     
-def balance_classes_undersample(waves_df, max_per_class=None):
+def balance_classes_undersample(df, label_col, max_per_class=None):
     """
-    Balance the number of normal ('N') and abnormal beats in the DataFrame, capped at 300 entries each.
+    Balance multiple classes by undersampling each class to the size of the smallest class
+    (capped to max_per_class cap if provided)
     """
-    normal = waves_df[waves_df["symbol"] == "N"]
-    abnormal = waves_df[waves_df["symbol"] != "N"]
+    # group by class
+    class_groups = {cls: grp for cls, grp in df.groupby(label_col)}
 
-    if (max_per_class != None):
-        n_samples = min(len(normal), len(abnormal), max_per_class)
+    # sample size will be the size of the category with the least number of entries, capped at max_per_class if it is not None
+    min_class_size = min(len(grp) for grp in class_groups.values())
+    if max_per_class is not None:
+        sample_size = min(min_class_size, max_per_class)
     else:
-        n_samples = min(len(normal), len(abnormal))
-    normal_sample = normal.sample(n=n_samples, random_state=0)
-    abnormal_sample = abnormal.sample(n=n_samples, random_state=0)
+        sample_size = min_class_size
 
-    counts = {"N": len(normal_sample), "abnormal": len(abnormal_sample)}
-    balanced_df = pd.concat([normal_sample, abnormal_sample]).sample(frac=1, random_state=0).reset_index(drop=True)
+    # sample each class
+    balanced_parts = []
+    counts = {}
+    for cls, grp in class_groups.items():
+        sampled = grp.sample(n=sample_size, random_state=0)
+        balanced_parts.append(sampled)
+        counts[cls] = len(sampled)
 
+    # combine
+    balanced_df = (
+        pd.concat(balanced_parts)
+          .sample(frac=1, random_state=0)
+          .reset_index(drop=True)
+    )
     return balanced_df, counts
 
 
-def balance_classes_bootstrap(waves_df, max_per_class=None):
+def balance_classes_bootstrap(df, label_col, max_per_class=None):
     """
-    Balance the number of normal ('N') and abnormal beats by bootstrapping the minority class,
-    capped at max_per_class entries per class.
+    Balance multiple classes by oversampling (bootstrapping) each class to the size of the largest class
+    (capped to max_per_class if provided).
     """
-    if "symbol" not in waves_df.columns:
-        raise RuntimeError("waves_df must contain a 'symbol' column")
+    # group by class
+    class_groups = {cls: grp for cls, grp in df.groupby(label_col)}
 
-    # Separate classes
-    normal = waves_df[waves_df["symbol"] == "N"]
-    abnormal = waves_df[waves_df["symbol"] != "N"]
-
-    # Determine target number per class
-    if (max_per_class != None):
-        target_samples = min(len(normal), len(abnormal), max_per_class)
+    # sample size will be the size of the category with the largest number of entries, capped at max_per_class if provided
+    max_class_size = max(len(grp) for grp in class_groups.values())
+    if max_per_class is not None:
+        sample_size = min(max_class_size, max_per_class)
     else:
-        target_samples = min(len(normal), len(abnormal))
+        sample_size = max_class_size
 
-    # Oversample minority class
-    if len(normal) < len(abnormal):
-        normal_sample = normal.sample(n=target_samples, replace=True, random_state=0)
-        abnormal_sample = abnormal.sample(n=target_samples, replace=False, random_state=0)
-    else:
-        abnormal_sample = abnormal.sample(n=target_samples, replace=True, random_state=0)
-        normal_sample = normal.sample(n=target_samples, replace=False, random_state=0)
+    # sample each class with replacement if needed
+    balanced_parts = []
+    counts = {}
+    for cls, grp in class_groups.items():
+        replace = len(grp) < sample_size  # only replace if group is smaller than target
+        sampled = grp.sample(n=sample_size, replace=replace, random_state=0) # duplicate smaller categories to reach desired sample size
+        balanced_parts.append(sampled)
+        counts[cls] = len(sampled)
 
-    balanced_df = pd.concat([normal_sample, abnormal_sample]).sample(frac=1, random_state=0).reset_index(drop=True)
-    counts = {"N": len(normal_sample), "abnormal": len(abnormal_sample)}
-
-    return balanced_df, counts
-
-
-
-def balance_classes_smote(waves_df, feature_cols=['a','b','tau','I','v0','w0'], max_per_class=300):
-    """
-    Balance the number of normal ('N') and abnormal beats using SMOTE,
-    capped at max_per_class entries per class.
-    Returns:
-        balanced_df  - dataframe of balanced samples
-        counts        - dict: {"N": n_normal, "abnormal": n_abnormal}
-    """
-    if "symbol" not in waves_df.columns:
-        raise RuntimeError("waves_df must contain a 'symbol' column")
-
-    # Separate classes (same method as your bootstrap version)
-    normal = waves_df[waves_df["symbol"] == "N"].copy()
-    abnormal = waves_df[waves_df["symbol"] != "N"].copy()
-
-    # Label encoding for binary classification
-    #   0 -> N
-    #   1 -> abnormal
-    df = waves_df.copy()
-    df["binary_label"] = (df["symbol"] != "N").astype(int)
-
-    # Extract feature matrix
-    df_clean = df.dropna(subset=feature_cols + ["binary_label"]).copy()
-    X = df_clean[feature_cols].values
-    y = df_clean["binary_label"].values
-
-    # -------------------------
-    # Run SMOTE (on binary label)
-    # -------------------------
-    sm = SMOTE(random_state=0)
-    X_res, y_res = sm.fit_resample(X, y)
-
-    # Reconstruct dataframe
-    res_df = pd.DataFrame(X_res, columns=feature_cols)
-    res_df["symbol"] = np.where(y_res == 0, "N", "abnormal")
-
-    # -------------------------
-    # Apply max_per_class cap
-    # -------------------------
-    normal_res = res_df[res_df["symbol"] == "N"]
-    abnormal_res = res_df[res_df["symbol"] == "abnormal"]
-
-    # Limit samples to max_per_class (same logic as your bootstrap version)
-    normal_final = normal_res.sample(
-        n=min(max_per_class, len(normal_res)), 
-        random_state=0, 
-        replace=False
+    # combine
+    balanced_df = (
+        pd.concat(balanced_parts)
+          .sample(frac=1, random_state=0)
+          .reset_index(drop=True)
     )
-    abnormal_final = abnormal_res.sample(
-        n=min(max_per_class, len(abnormal_res)), 
-        random_state=0, 
-        replace=False
-    )
-
-    # Final balanced dataset
-    balanced_df = pd.concat([normal_final, abnormal_final]) \
-                    .sample(frac=1, random_state=0) \
-                    .reset_index(drop=True)
-
-    counts = {
-        "N": len(normal_final),
-        "abnormal": len(abnormal_final)
-    }
 
     return balanced_df, counts

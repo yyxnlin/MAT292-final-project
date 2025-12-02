@@ -7,7 +7,7 @@ from fhn.simulation import fit_fhn_to_segment, simulate_fhn, loss
 from fhn.ecg_processing import detect_waves, attach_symbols
 from fhn.fhn_processing import preprocess_waves, fit_beats, process_record
 from utils.balancing import balance_classes
-from utils.data_filtering import filter_df_by_threshold
+from utils.data_filtering import filter_df_by_threshold, categorize_symbols
 from utils.file_utils import build_record_dicts
 from fhn.data_statistics import get_col_counts
 from fhn.metrics import compute_metrics
@@ -94,33 +94,56 @@ def run_filter(data_dir, loss_threshold, r2_threshold):
     fhn_df_filtered = filter_df_by_threshold(fhn_df, "loss", loss_threshold, "r2", r2_threshold)
     fhn_df_filtered.to_parquet(f"{data_dir}/all_fhn_data_filtered.parquet")
 
-def run_balance(data_dir, max_per_class, method):
+def run_balance(data_dir, max_per_class, method, category_map):
     fhn_df_filtered = pd.read_parquet(f"{data_dir}/all_fhn_data_filtered.parquet")
-    balanced_waves_df, counts = balance_classes(fhn_df_filtered, max_per_class=max_per_class, method=method)
+    
+    fhn_df_filtered_categorized = categorize_symbols(df=fhn_df_filtered, 
+                                                     category_map=category_map, 
+                                                     symbol_col="symbol", 
+                                                     new_col="symbol_categorized")
+    
+    fhn_df_filtered_categorized.to_parquet("aaaaa.parquet")
+    balanced_waves_df, counts = balance_classes(waves_df=fhn_df_filtered_categorized, 
+                                                label_col="symbol_categorized",
+                                                max_per_class=max_per_class, 
+                                                method=method)
     balanced_waves_df.to_parquet(f"{data_dir}/all_fhn_data_filtered_balanced.parquet")
 
-def run_model(data_dir, output_folder, label_col):
+def run_model(data_dir, plot_folder, class_names ,label_col="symbol_categorized"):
+    print(class_names)
     balanced_waves_df = pd.read_parquet(f"{data_dir}/all_fhn_data_filtered_balanced.parquet")
 
     features_fhn = ['a', 'b', 'tau', 'I', 'v0', 'w0']
     features_width = ['qrs_width', 'pt_width']
-    X_scaled, y, groups, _, _, target_names = prepare_knn_data_general(df=balanced_waves_df, features=features_fhn+features_width, label_col=label_col)
+    X_scaled, y, groups = prepare_knn_data_general(df=balanced_waves_df, 
+                                                    label_col=label_col, 
+                                                    class_names=class_names,
+                                                    features=features_fhn+features_width)
     
     group_counts = pd.Series(groups).value_counts()
     print("Number of datapoints per group:")
     print(group_counts)
 
     y_preds = knn_leave_one_group_out(X_scaled, y, groups)
-    acc, report, cm = classification_metrics(y, y_preds, target_names)
-    plot_confusion_matrix(cm, labels = target_names, output_folder=output_folder)
+    acc, report, cm = classification_metrics(y, y_preds, class_names)
+    plot_confusion_matrix(cm, labels = class_names, output_folder=plot_folder)
     print(f"Accuracy: {acc:.4f}")
     print(report)
 
 
 def main():
+    CATEGORY_MAPS = {
+        "binary": {"N": ["N"]},
+        "N/LRB": {"N": ["N"], "LRB": ["L", "R", "B"]},
+        "N/L": {"N": ["N"], "L": ["L"]},
+    }
+    VALID_CLASSIFICATION_TYPES = list(CATEGORY_MAPS.keys())
+
+    category_map = {}
+
     parser = argparse.ArgumentParser(description="ECG Classification Pipeline")
 
-    parser.add_argument("--step", type=str, required=True,
+    parser.add_argument("--step", type=str, required=True, nargs="+",
                         choices=["data_stats", "combine", "fhn", "filter", "balance", "model"])
 
     parser.add_argument("--data_folder", type=str, default="data")
@@ -129,37 +152,54 @@ def main():
     parser.add_argument("--log_file", type=str, default="error_log.txt")
 
     parser.add_argument("--max_per_class", type=int, default=None)
-    parser.add_argument("--method", type=str, default="undersample_normal")
+    parser.add_argument("--method", type=str, default="undersample", help="oversample/undersample")
 
     parser.add_argument("--loss_threshold", type=float, default=0.1)
     parser.add_argument("--r2_threshold", type=float, default=0.6)
 
-    parser.add_argument("--classification_type", type=str, default="symbol_binary")
+    parser.add_argument(
+        "--categories",
+        type=str,
+        default="binary",
+        choices=VALID_CLASSIFICATION_TYPES,
+        help=f"Categories must be one of: {VALID_CLASSIFICATION_TYPES}"
+    )
 
 
     args = parser.parse_args()
 
-    if args.step == "data_stats":
+    category_map=CATEGORY_MAPS[args.categories]
+
+    if "data_stats" in args.step:
         run_data_stats(args.data_folder, args.plots_folder)
 
-    if args.step == "combine":
+    if "combine" in args.step:
         run_combine(args.data_folder,
-                    args.output_folder, args.log_file)
+                    args.output_folder, 
+                    args.log_file)
 
-    if args.step == "fhn":
-        run_fhn(args.data_folder, args.output_folder,
-                args.input, args.output)
+    if "fhn" in args.step:
+        run_fhn(args.data_folder, 
+                args.output_folder,
+                args.input, 
+                args.output)
 
-    if args.step == "filter":
+    if "filter" in args.step:
         run_filter(args.output_folder,
-                   args.loss_threshold, args.r2_threshold)
+                   args.loss_threshold, 
+                   args.r2_threshold)
         
-    if args.step == "balance":
+    if "balance" in args.step:
         run_balance(args.output_folder,
-                    args.max_per_class, args.method)
+                    args.max_per_class, 
+                    args.method, 
+                    category_map)
 
-    if args.step == "model":
-        run_model(args.output_folder, args.classification_type, args.plots_folder)
+    if "model" in args.step:
+        run_model(args.output_folder, 
+                  plot_folder=args.plots_folder, 
+                  class_names=list(category_map.keys())+["Other"],
+                  label_col="symbol_categorized")
 
 
 if __name__ == "__main__":
