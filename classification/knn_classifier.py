@@ -4,6 +4,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import LeaveOneGroupOut
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 
 def prepare_knn_data(df, features=['a','b','tau','I','v0','w0'], label_col='symbol_binary'):
     """
@@ -20,6 +21,31 @@ def prepare_knn_data(df, features=['a','b','tau','I','v0','w0'], label_col='symb
     X_scaled = scaler.fit_transform(X)
     
     return X_scaled, y, groups, df_knn
+
+
+def prepare_knn_data_general(df, features=['a','b','tau','I','v0','w0'], label_col='symbol'):
+    
+    # Drop rows with missing features or label
+    df_knn = df.dropna(subset=features + [label_col]).copy()
+    
+    # Convert categorical labels to numeric
+    label_encoder = LabelEncoder()
+    y = label_encoder.fit_transform(df_knn[label_col])
+    
+    # Features
+    X = df_knn[features].values
+    
+    # Optional: group identifiers if you want Leave-One-Group-Out CV
+    groups = df_knn['recording'].values if 'recording' in df_knn.columns else None
+    
+    # Scale features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    class_names = list(label_encoder.classes_)
+
+    return X_scaled, y, groups, df_knn, label_encoder, class_names
+
 
 def knn_leave_one_group_out(X, y, groups, n_neighbors=5):
     """

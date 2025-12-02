@@ -2,7 +2,7 @@ import pandas as pd
 import os 
 
 
-def aggregate_and_filter_outputs(data_dir, loss_col='loss', threshold=0.1):
+def aggregate_and_filter_outputs(data_dir, loss_col='loss', loss_threshold=0.1, r2_col = 'r2', r2_threshold = 0.8):
     parquet_files = [f for f in os.listdir(data_dir) if f.endswith(".parquet")]
     dfs = []
     for f in parquet_files:
@@ -10,8 +10,12 @@ def aggregate_and_filter_outputs(data_dir, loss_col='loss', threshold=0.1):
         
         # Keep only rows with loss < 0.1
         if loss_col in df_file.columns:
-            df_file = df_file[df_file[loss_col] < threshold]
+            df_file = df_file[df_file[loss_col] < loss_threshold]
         
+        # Filter by r2 if column exists
+        if r2_col in df_file.columns:
+            df_file = df_file[df_file[r2_col] > r2_threshold]
+
         # attach "recording" column used for filtering by patient later for testing set
         df_file['recording'] = f
         dfs.append(df_file)
