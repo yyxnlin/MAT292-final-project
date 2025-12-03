@@ -7,7 +7,7 @@ The data used in this project comes from the [MIT-BIH Arrhythmia Database](https
 
 The dataset includes:
 * ECG waveform files (`*_ekg.csv`), containing raw ECG signal
-* Annotation files (*_annotations_1.csv), containing beat-level labels corresponding to each ECG waveform file
+* Annotation files (`*_annotations_1.csv`), containing beat-level labels corresponding to each ECG waveform file
 
 Place all downloaded CSVs in the `data/` directory before running the pipeline.
 
