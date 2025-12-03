@@ -14,10 +14,27 @@ def plot_counts_stacked(
     os.makedirs(output_folder, exist_ok=True)
     filepath = os.path.join(output_folder, f"{filename}.png")
 
-    df.plot(kind='bar', stacked=True, figsize=(18, 8), colormap='tab20')
-    plt.xlabel("File")
-    plt.ylabel("Number of annotations")
-    plt.xticks(rotation=45, ha='right')
+    fig, ax = plt.subplots(figsize=(16, 9))
+    x = np.arange(len(df))
+    bottom = np.zeros(len(df))
+
+    for i in range(len(df)):
+        # Sort values for this row ascending
+        row_sorted = df.iloc[i].sort_values(ascending=True)
+        for col, value in row_sorted.items():
+            ax.bar(x[i], value, bottom=bottom[i], color=plt.cm.Set2(df.columns.get_loc(col)/len(df.columns)), label=col if i == 0 else "")
+            bottom[i] += value
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(df.index, rotation=45, ha='right')
+    ax.set_xlabel("File", fontsize=16)
+    ax.set_ylabel("Number of annotations", fontsize=16)
+    ax.legend(
+        loc='upper right',
+        bbox_to_anchor=(1.08, 1),
+        fontsize=16,
+        ncol=1
+    )
     plt.tight_layout()
     plt.savefig(filepath, dpi=300)
     plt.show()
@@ -198,7 +215,6 @@ def plot_tsne_sample_by_symbol(df, output_folder, max_sample_size=1000, features
             s=20
         )
 
-    plt.title("t-SNE of FHN Features Colored by Symbol")
     plt.xlabel("t-SNE 1")
     plt.ylabel("t-SNE 2")
     plt.legend()
