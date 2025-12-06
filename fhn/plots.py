@@ -37,7 +37,6 @@ def plot_counts_stacked(
     )
     plt.tight_layout()
     plt.savefig(filepath, dpi=300)
-    plt.show()
 
 
 def plot_ecg_beats(ecg, rpeaks, waves,
@@ -97,7 +96,6 @@ def plot_ecg_beats(ecg, rpeaks, waves,
     plt.grid(True)
     plt.tight_layout()
     plt.savefig(filepath, dpi=300)
-    plt.show()
 
 
 
@@ -162,7 +160,6 @@ def plot_single_beat(ecg, row, output_folder="plots", filename="ecg_beat", fs=36
     plt.grid(True)
     plt.tight_layout()
     plt.savefig(filepath, dpi=300)
-    plt.show()
 
 
 
@@ -176,7 +173,6 @@ def plot_confusion_matrix(cm, labels=['N','not N'], output_folder="plots", title
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.savefig(f"{output_folder}/confusion_matrix.png", dpi=300)
-    plt.show()
 
 
     
@@ -204,7 +200,7 @@ def plot_tsne_sample_by_symbol(df, output_folder, max_sample_size=1000, features
     })
 
     # --- Plot ---
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(10, 6))
     for sym in plot_df["symbol"].unique():
         mask = plot_df["symbol"] == sym
         plt.scatter(
@@ -217,7 +213,50 @@ def plot_tsne_sample_by_symbol(df, output_folder, max_sample_size=1000, features
 
     plt.xlabel("t-SNE 1")
     plt.ylabel("t-SNE 2")
-    plt.legend()
+    plt.legend(
+        loc='upper right',
+        bbox_to_anchor=(1.14, 1),
+        fontsize=15,
+        ncol=1
+    )
     plt.grid(True)
     plt.savefig(f"{output_folder}/tsne.png", dpi=300)
-    plt.show()
+
+
+def plot_filtering_summary(
+    df_raw,
+    df_filt,
+    loss_threshold,
+    r2_threshold,
+    output_folder
+):
+    # Filtered data
+    L_raw = df_raw["loss"].dropna()
+    L_filt = df_filt["loss"].dropna()
+    R_raw = df_raw["r2"].dropna()
+    R_filt = df_filt["r2"].dropna()
+
+    # Keep only reasonable ranges
+    L_raw = L_raw[(L_raw >= 0) & (L_raw <= 5)]
+    L_filt = L_filt[(L_filt >= 0) & (L_filt <= 5)]
+    R_raw = R_raw[(R_raw >= 0) & (R_raw <= 1)]
+    R_filt = R_filt[(R_filt >= 0) & (R_filt <= 1)]
+
+    # Define plots info: (data, xlabel, xlim, color, filename)
+    plots = [
+        (L_raw, "Loss L", (0, 5), "#4C72B0", "loss_raw.png"),
+        (L_filt, "Loss L", (0, loss_threshold), "#55A868", "loss_filtered.png"),
+        (R_raw, "$R^2$", (0, 1), "#4C72B0", "r2_raw.png"),
+        (R_filt, "$R^2$", (r2_threshold, 1), "#55A868", "r2_filtered.png")
+    ]
+
+    for data, xlabel, xlim, color, fname in plots:
+        plt.figure(figsize=(8,6))
+        plt.hist(data, bins=50, color=color, alpha=0.7)
+        plt.xlabel(xlabel, fontsize=14)
+        plt.ylabel("Count", fontsize=14)
+        plt.xlim(xlim)
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(f"{output_folder}/{fname}")
+        plt.close()
