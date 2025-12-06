@@ -11,18 +11,18 @@ from utils.data_filtering import filter_df_by_threshold, categorize_symbols
 from utils.file_utils import build_record_dicts
 from fhn.data_statistics import get_col_counts
 from fhn.metrics import compute_metrics
-from fhn.plots import plot_ecg_beats, plot_single_beat, plot_confusion_matrix, plot_counts_stacked, plot_tsne_sample_by_symbol
+from fhn.plots import plot_ecg_beats, plot_single_beat, plot_confusion_matrix, plot_counts_stacked, plot_tsne_sample_by_symbol, plot_filtering_summary
 from classification.knn_classifier import *
 
 
-def run_data_stats(data_folder, output_folder):
+def run_data_stats(data_folder, plots_folder):
     ekg_dict, _ = build_record_dicts(data_folder)
 
     filenames = ekg_dict.values()
     files = [os.path.join(data_folder, f) for f in filenames]
 
     _, counts_df = get_col_counts(files)
-    plot_counts_stacked(counts_df, output_folder=output_folder)
+    plot_counts_stacked(counts_df, output_folder=plots_folder)
 
 
 def run_combine(data_folder, output_folder, log_file):
@@ -109,9 +109,19 @@ def run_balance(data_dir, max_per_class, method, category_map):
                                                 method=method)
     balanced_waves_df.to_parquet(f"{data_dir}/all_fhn_data_filtered_balanced.parquet")
 
-def run_filtered_fhn_stats(data_dir, plots_dir):
-    all_fhn_data_filtered_df = pd.read_parquet(f"{data_dir}/all_fhn_data_raw.parquet")
-    plot_tsne_sample_by_symbol(all_fhn_data_filtered_df, plots_dir, max_sample_size=1000)
+def run_filtered_fhn_stats(data_dir, plots_dir, loss_threshold, r2_threshold):
+    fhn_df = pd.read_parquet(f"{data_dir}/all_fhn_data_raw.parquet")
+    fhn_df_filtered = pd.read_parquet(f"{data_dir}/all_fhn_data_filtered.parquet")
+
+    plot_tsne_sample_by_symbol(fhn_df_filtered, plots_dir, max_sample_size=1000)
+
+    plot_filtering_summary(
+        fhn_df,
+        fhn_df_filtered,
+        loss_threshold, 
+        r2_threshold,
+        plots_dir
+    )
 
 def run_model(data_dir, plot_folder, class_names ,label_col="symbol_categorized"):
     print(class_names)
@@ -123,17 +133,27 @@ def run_model(data_dir, plot_folder, class_names ,label_col="symbol_categorized"
                                                     label_col=label_col, 
                                                     class_names=class_names,
                                                     features=features_fhn+features_width)
-    
+
+    # Get/save group counts to CSV
     group_counts = pd.Series(groups).value_counts()
-    print("Number of datapoints per group:")
-    print(group_counts)
+    group_counts_df = group_counts.reset_index()
+    group_counts_df.columns = ["group", "count"]
+    group_counts_df.to_csv(f"{plot_folder}/group_counts.csv", index=False)
+
 
     y_preds = knn_leave_one_group_out(X_scaled, y, groups)
     acc, report, cm = classification_metrics(y, y_preds, class_names)
+
+    # Save classification report as CSV
+    with open(f"{plot_folder}/classification_report.txt", "w") as f:
+        f.write(report)
+
+    # Plot confusion matrix
     plot_confusion_matrix(cm, labels = class_names, output_folder=plot_folder)
+
+    # Print results
     print(f"Accuracy: {acc:.4f}")
     print(report)
-
 
 def main():
     CATEGORY_MAPS = {
@@ -149,7 +169,7 @@ def main():
     parser = argparse.ArgumentParser(description="ECG Classification Pipeline")
 
     parser.add_argument("--step", type=str, required=True, nargs="+",
-                        choices=["data_stats", "combine", "fhn", "filter", "filtered_fhn_stats", "balance", "model"])
+                        choices=["data_stats", "combine", "fhn", "filter", "filtered_fhn_stats", "balance", "model", "run_filtered_stats"])
 
     parser.add_argument("--data_folder", type=str, default="data")
     parser.add_argument("--output_folder", type=str, default="output")
@@ -172,6 +192,9 @@ def main():
 
 
     args = parser.parse_args()
+    
+    os.makedirs(args.output_folder, exist_ok=True)
+    os.makedirs(args.plots_folder, exist_ok=True)
 
     category_map=CATEGORY_MAPS[args.categories]
 
@@ -197,7 +220,9 @@ def main():
         
     if "filtered_fhn_stats" in args.step:
         run_filtered_fhn_stats(args.output_folder,
-                args.plots_folder)
+                args.plots_folder,
+                args.loss_threshold,
+                args.r2_threshold)
         
     if "balance" in args.step:
         run_balance(args.output_folder,

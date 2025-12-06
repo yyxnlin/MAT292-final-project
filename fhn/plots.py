@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import os
 import pandas as pd
@@ -164,14 +165,18 @@ def plot_single_beat(ecg, row, output_folder="plots", filename="ecg_beat", fs=36
 
 
 
-def plot_confusion_matrix(cm, labels=['N','not N'], output_folder="plots", title="Normalized Confusion Matrix"):
+def plot_confusion_matrix(cm, labels=['N','not N'], output_folder="plots"):
     plt.figure(figsize=(5,4))
-    sns.heatmap(cm, annot=True, fmt=".2f", cmap="Blues",
+    ax = sns.heatmap(cm, annot=True, fmt=".2f", cmap="Blues",
                 xticklabels=labels,
-                yticklabels=labels)
-    plt.title(title)
-    plt.xlabel("Predicted")
-    plt.ylabel("True")
+                yticklabels=labels,
+                annot_kws={"fontsize": 12})
+    ax.set_xlabel("Predicted", fontsize=11)
+    ax.set_ylabel("True", fontsize=11)
+
+    ax.tick_params(axis='x', labelsize=12, rotation=0) 
+    ax.tick_params(axis='y', labelsize=12)
+
     plt.savefig(f"{output_folder}/confusion_matrix.png", dpi=300)
 
 
@@ -251,12 +256,25 @@ def plot_filtering_summary(
     ]
 
     for data, xlabel, xlim, color, fname in plots:
-        plt.figure(figsize=(8,6))
-        plt.hist(data, bins=50, color=color, alpha=0.7)
-        plt.xlabel(xlabel, fontsize=14)
-        plt.ylabel("Count", fontsize=14)
-        plt.xlim(xlim)
-        plt.grid(True, alpha=0.3)
+        fig, ax = plt.subplots(figsize=(8,6))
+        ax.hist(data, bins=50, color=color, alpha=0.7)
+        
+        ax.set_xlabel(xlabel, fontsize=20)
+        ax.set_ylabel("Count", fontsize=20)
+        ax.set_xlim(xlim)
+        ax.grid(True, alpha=0.3)
+        
+        # Reduce number of ticks
+        ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=6))
+        ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=6))
+        
+        # Format tick labels to max 2 decimal places
+        fmt = lambda x, _: ('%.2f' % x).rstrip('0').rstrip('.')  # only keep decimals if necessary
+        ax.xaxis.set_major_formatter(mticker.FuncFormatter(fmt))
+        
+        # Tick font size
+        ax.tick_params(axis='both', labelsize=19)
+        
         plt.tight_layout()
         plt.savefig(f"{output_folder}/{fname}")
         plt.close()
