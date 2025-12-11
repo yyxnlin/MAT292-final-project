@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 from fhn.simulation import fit_fhn_to_segment, simulate_fhn, loss
 from fhn.ecg_processing import detect_waves, attach_symbols
-from fhn.fhn_processing import preprocess_waves, fit_beats, process_record
+from fhn.fhn_processing import preprocess_waves, fit_beats_fhn, process_record, fit_beats_ap
 from utils.balancing import balance_classes
 from utils.data_filtering import filter_df_by_threshold, categorize_symbols
 from utils.file_utils import build_record_dicts
@@ -13,7 +13,6 @@ from fhn.data_statistics import get_col_counts
 from fhn.metrics import compute_metrics
 from fhn.plots import plot_ecg_beats, plot_single_beat, plot_confusion_matrix, plot_counts_stacked, plot_tsne_sample_by_symbol, plot_filtering_summary
 from classification.knn_classifier import *
-
 
 def run_data_stats(data_folder, plots_folder):
     ekg_dict, _ = build_record_dicts(data_folder)
@@ -74,7 +73,7 @@ def run_fhn(data_folder, output_folder, log_file="error_log.txt"):
     for idx, row in tqdm(raw_waves_df.iterrows(), total=len(raw_waves_df), desc="Fitting FHN"):
         try:
             ecg = ecg_cache[row["recording"]]
-            fhn_params_df = fit_beats(pd.DataFrame([row]), ecg, keep_cols=["recording", "symbol_binary"])
+            fhn_params_df = fit_beats_fhn(pd.DataFrame([row]), ecg, keep_cols=["recording", "symbol"])
             fhn_rows.append(fhn_params_df)
         except Exception as e:
             with open(log_file, "a") as f:
@@ -87,6 +86,58 @@ def run_fhn(data_folder, output_folder, log_file="error_log.txt"):
         fhn_df.to_parquet(f"{output_folder}/all_fhn_data_raw.parquet")
     else:
         print("No FHN results to save.")
+
+
+
+def run_ap(data_folder, output_folder, log_file="error_log.txt"):
+    ekg_dict, _ = build_record_dicts(data_folder) # change this later so you save all the numbers somewhere, no need to reconstruct ekg_dict again
+    raw_waves_df = pd.read_parquet(f"{output_folder}/all_waves_raw.parquet")
+    raw_waves_df["symbol_binary"] = raw_waves_df["symbol"].map(
+        lambda x: 'N' if x=='N' else 'Not N'
+    )
+
+    cache_folder = f"{output_folder}/cache"
+    os.makedirs(cache_folder, exist_ok=True)
+
+    # fit ap
+    ecg_cache = {}
+    for number in tqdm(sorted(ekg_dict.keys()), desc="Loading ECGs"):
+        try:
+            df = pd.read_csv(os.path.join(data_folder, ekg_dict[number]))
+            ecg_cache[number] = df["MLII"].values if "MLII" in df.columns else df.iloc[:, 1].values
+        except Exception as e:
+            with open(log_file, "a") as f:
+                f.write(f"{number} (ECG load error): {repr(e)}\n")
+            print(f"Error loading ECG for record {number}: {e}")
+            continue
+
+    ap_rows = []
+
+    for idx, row in tqdm(raw_waves_df.iterrows(), total=len(raw_waves_df), desc="Fitting ap"):
+        # Only process every 10th row
+        if idx % 10 != 0:
+            continue
+        try:
+            ecg = ecg_cache[row["recording"]]
+            ap_params_df = fit_beats_ap(pd.DataFrame([row]), ecg, keep_cols=["recording", "symbol"])
+            ap_rows.append(ap_params_df)
+        except Exception as e:
+            with open(log_file, "a") as f:
+                f.write(f"{row['recording']} (ap fit error, row {idx}): {repr(e)}\n")
+            print(f"Skipping row {idx} in recording {row['recording']} due to error: {e}")
+            continue
+
+        if len(ap_rows) >= 10:
+            batch_idx = idx // 100
+            batch_df = pd.concat(ap_rows, ignore_index=True)
+            batch_df.to_parquet(f"{cache_folder}/batch_{batch_idx}.parquet")
+            ap_rows = []
+
+    if ap_rows:
+        ap_df = pd.concat(ap_rows, ignore_index=True)
+        ap_df.to_parquet(f"{output_folder}/all_ap_data_raw.parquet")
+    else:
+        print("No ap results to save.")
 
 
 def run_filter(data_dir, loss_threshold, r2_threshold):
@@ -207,10 +258,8 @@ def main():
                     args.log_file)
 
     if "fhn" in args.step:
-        run_fhn(args.data_folder, 
-                args.output_folder,
-                args.input, 
-                args.output)
+        run_ap(args.data_folder, 
+                args.output_folder)
 
     
     if "filter" in args.step:
