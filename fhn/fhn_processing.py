@@ -111,14 +111,14 @@ def fit_beats_ap(waves_bal, ecg, prefix="", keep_cols=None):
         indices = np.linspace(0, len(ecg_norm)-1, 10, dtype=int)
         ecg_sub = ecg_norm[indices]
         t_sub = np.arange(len(ecg_segment))[indices]
-        print (ecg_sub)
+        # print (ecg_sub)
 
         res = fit_ap_to_segment(ecg_sub, t_sub)
         if res is None:
             continue
 
         fitted_params = res.x
-        print("fit:", fitted_params)
+        # print("fit:", fitted_params)
 
         v_fit_norm = simulate_ap(fitted_params, t_sub)
         v_fit = v_fit_norm * (ecg_max - ecg_min) + ecg_min

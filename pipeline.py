@@ -14,6 +14,9 @@ from fhn.metrics import compute_metrics
 from fhn.plots import plot_ecg_beats, plot_single_beat, plot_confusion_matrix, plot_counts_stacked, plot_tsne_sample_by_symbol, plot_filtering_summary
 from classification.knn_classifier import *
 
+from joblib import Parallel, delayed
+from tqdm_joblib import tqdm_joblib
+
 def run_data_stats(data_folder, plots_folder):
     ekg_dict, _ = build_record_dicts(data_folder)
 
@@ -88,18 +91,29 @@ def run_fhn(data_folder, output_folder, log_file="error_log.txt"):
         print("No FHN results to save.")
 
 
+def process_batch(batch_df, ecg_cache, log_file, cache_folder, batch_idx):
+    try:
+        results = []
+        # Group by recording if needed
+        for rec, rec_rows in batch_df.groupby("recording"):
+            ecg = ecg_cache[rec]
+            res = fit_beats_ap(rec_rows, ecg, keep_cols=["recording", "symbol"])
+            results.append(res)
+        if results:
+            batch_result = pd.concat(results, ignore_index=True)
+            batch_result.to_parquet(os.path.join(cache_folder, f"batch_{batch_idx}.parquet"))
+        return batch_idx
+    except Exception as e:
+        with open(log_file, "a") as f:
+            f.write(f"Batch {batch_idx} error: {repr(e)}\n")
+        return None
 
-def run_ap(data_folder, output_folder, log_file="error_log.txt"):
-    ekg_dict, _ = build_record_dicts(data_folder) # change this later so you save all the numbers somewhere, no need to reconstruct ekg_dict again
-    raw_waves_df = pd.read_parquet(f"{output_folder}/all_waves_raw.parquet")
-    raw_waves_df["symbol_binary"] = raw_waves_df["symbol"].map(
-        lambda x: 'N' if x=='N' else 'Not N'
-    )
+def run_ap(data_folder, output_folder, log_file="error_log.txt", batch_size=200, n_jobs=15):
+    # Load ECG metadata and wave info
+    ekg_dict, _ = build_record_dicts(data_folder)
+    waves_df = pd.read_parquet(f"{output_folder}/all_waves_raw.parquet")
 
-    cache_folder = f"{output_folder}/cache"
-    os.makedirs(cache_folder, exist_ok=True)
-
-    # fit ap
+    # Cache ECG signals
     ecg_cache = {}
     for number in tqdm(sorted(ekg_dict.keys()), desc="Loading ECGs"):
         try:
@@ -108,36 +122,22 @@ def run_ap(data_folder, output_folder, log_file="error_log.txt"):
         except Exception as e:
             with open(log_file, "a") as f:
                 f.write(f"{number} (ECG load error): {repr(e)}\n")
-            print(f"Error loading ECG for record {number}: {e}")
-            continue
 
-    ap_rows = []
+    # Split into batches
+    batches = [waves_df.iloc[i:i+batch_size] for i in range(0, len(waves_df), batch_size)]
+    print(f"Total batches: {len(batches)}, Batch size: {batch_size}")
 
-    for idx, row in tqdm(raw_waves_df.iterrows(), total=len(raw_waves_df), desc="Fitting ap"):
-        # Only process every 10th row
-        if idx % 10 != 0:
-            continue
-        try:
-            ecg = ecg_cache[row["recording"]]
-            ap_params_df = fit_beats_ap(pd.DataFrame([row]), ecg, keep_cols=["recording", "symbol"])
-            ap_rows.append(ap_params_df)
-        except Exception as e:
-            with open(log_file, "a") as f:
-                f.write(f"{row['recording']} (ap fit error, row {idx}): {repr(e)}\n")
-            print(f"Skipping row {idx} in recording {row['recording']} due to error: {e}")
-            continue
+    # Create cache folder
+    cache_folder = os.path.join(output_folder, "cache")
+    os.makedirs(cache_folder, exist_ok=True)
 
-        if len(ap_rows) >= 10:
-            batch_idx = idx // 100
-            batch_df = pd.concat(ap_rows, ignore_index=True)
-            batch_df.to_parquet(f"{cache_folder}/batch_{batch_idx}.parquet")
-            ap_rows = []
+    # Process batches in parallel
+    Parallel(n_jobs=n_jobs, backend="loky")(
+        delayed(process_batch)(batch_df, ecg_cache, log_file, cache_folder, i)
+        for i, batch_df in enumerate(tqdm(batches, desc="Processing batches"))
+    )
 
-    if ap_rows:
-        ap_df = pd.concat(ap_rows, ignore_index=True)
-        ap_df.to_parquet(f"{output_folder}/all_ap_data_raw.parquet")
-    else:
-        print("No ap results to save.")
+    print("All batches processed!")
 
 
 def run_filter(data_dir, loss_threshold, r2_threshold):

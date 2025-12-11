@@ -125,5 +125,5 @@ def fit_ap_to_segment(ecg_sub, t_sub, timeout=10):
     except Exception:
         print("exception")
         return None
-    print("returning res:", res)
+    # print("returning res:", res)
     return res
