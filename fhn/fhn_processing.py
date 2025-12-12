@@ -2,7 +2,7 @@ from fhn.ecg_processing import detect_waves, attach_symbols
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from fhn.simulation import fit_fhn_to_segment, simulate_fhn, loss, simulate_ap, fit_ap_to_segment, loss_ap
+from fhn.simulation import fit_fhn_to_segment, simulate_fhn, loss, simulate_ap, fit_ap_to_segment
 from fhn.metrics import compute_metrics
 
 def preprocess_waves(ecg, annotations, fs=360):
@@ -30,7 +30,7 @@ def process_record(df, annotations, ecg, number, ekg_dict, ann_dict):
     return waves_df
 
     
-def fit_beats_fhn(waves_bal, ecg, prefix="", keep_cols=None):
+def fit_beats(waves_bal, ecg, prefix="", keep_cols=None):
     results = []
     for _, row in tqdm(waves_bal.iterrows(), total=len(waves_bal), desc="Fitting FHN"):
         if pd.isna(row["ECG_Q_Peaks"]) or pd.isna(row["ECG_S_Peaks"]):
@@ -60,6 +60,7 @@ def fit_beats_fhn(waves_bal, ecg, prefix="", keep_cols=None):
                     if pd.notna(row["ECG_P_Onsets"]) and pd.notna(row["ECG_T_Offsets"]) else np.nan)
 
         row_dict = {
+            "recording": row["recording"],
             "qrs_width": qrs_width,
             "pt_width": pt_width,
             "a": a,
@@ -68,6 +69,7 @@ def fit_beats_fhn(waves_bal, ecg, prefix="", keep_cols=None):
             "I": I,
             "v0": v0,
             "w0": w0,
+            "symbol": row["symbol"],
             "loss": loss(res.x, t_sub, ecg_sub),
             **metrics
         }
@@ -111,14 +113,13 @@ def fit_beats_ap(waves_bal, ecg, prefix="", keep_cols=None):
         indices = np.linspace(0, len(ecg_norm)-1, 10, dtype=int)
         ecg_sub = ecg_norm[indices]
         t_sub = np.arange(len(ecg_segment))[indices]
-        # print (ecg_sub)
 
+    
         res = fit_ap_to_segment(ecg_sub, t_sub)
         if res is None:
             continue
 
         fitted_params = res.x
-        # print("fit:", fitted_params)
 
         v_fit_norm = simulate_ap(fitted_params, t_sub)
         v_fit = v_fit_norm * (ecg_max - ecg_min) + ecg_min
@@ -129,6 +130,7 @@ def fit_beats_ap(waves_bal, ecg, prefix="", keep_cols=None):
                     if pd.notna(row["ECG_P_Onsets"]) and pd.notna(row["ECG_T_Offsets"]) else np.nan)
 
         row_dict = {
+            "recording": row["recording"],
             "qrs_width": qrs_width,
             "pt_width": pt_width,
             "a": fitted_params[0],
@@ -137,8 +139,9 @@ def fit_beats_ap(waves_bal, ecg, prefix="", keep_cols=None):
             "epsilon_high": fitted_params[3],
             "u0": fitted_params[4],
             "v0": fitted_params[5],
-            "loss": loss_ap(res.x, t_sub, ecg_sub),
-            **metrics
+            "symbol": row["symbol"],
+            "loss": fitted_params,
+            "r2": fitted_params
         }
 
         # Include extra columns if specified

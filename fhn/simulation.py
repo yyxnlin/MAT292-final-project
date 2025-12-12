@@ -94,29 +94,30 @@ def loss_ap(params, t_eval, ecg_subsampled):
     return np.sum((u_sim - ecg_subsampled)**2)
 
 
+def loss_ap_scaled(params, t, ecg_norm):
+    *ap_params, scale = params
+    v_fit_norm = simulate_ap(ap_params, t)
+    v_fit_scaled = v_fit_norm * scale
+    return np.sum((v_fit_scaled - ecg_norm) ** 2)
+
 
 def fit_ap_to_segment(ecg_sub, t_sub, timeout=10):
-    params0 = [
-        0.05,               # a
-        5.0,                # k
-        1.0,                # epsilon_low
-        0.1,                # epsilon_high
-        ecg_sub[0],  # u0 (adapted per beat)
-        0.0                 # v0
-    ]
+    params0 = [0.05, 5.0, 1.0, 0.1, ecg_sub[0], 0.0, 1.0]  # initial guess
 
     bounds = [
-        (0.04, 0.07),   # a
-        (5.0, 7.0),   # k
-        (0.5, 2.0),    # epsilon_low
-        (0.05, 0.2),   # epsilon_high
-        (0.0, 1.0),    # u0
-        (0.0, 0.2)     # v0
+        (0.01, 0.1),  # a
+        (5.0, 12.0),  # k
+        (0.5, 2.0),   # epsilon_low
+        (0.05, 0.2),  # epsilon_high
+        (0.0, 1.0),   # u0
+        (0.0, 0.2),   # v0
+        (0.5, 2.0)    # scale
     ]
     
     start_time = time.time()
     try:
-        res = minimize(lambda p: loss_ap(p, t_sub, ecg_sub), params0, method='Nelder-Mead', bounds=bounds)
+        res = minimize(loss_ap_scaled, params0, args=(t_sub, ecg_sub), method="Neader-Meld", bounds=bounds)
+
 
         # if takes too long, just skip
         # if time.time() - start_time > timeout:
