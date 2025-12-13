@@ -19,6 +19,6 @@ def get_col_counts(files: List[str], target_col="symbol"):
 
     for i, counts in enumerate(counts_list):
         for sym, val in counts.items():
-            counts_df.iloc[i][sym] = val
+            counts_df.loc[counts_df.index[i], sym] = val
 
     return symbols_set, counts_df

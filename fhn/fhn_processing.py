@@ -54,6 +54,7 @@ def fit_beats(waves_bal, ecg, prefix="", keep_cols=None):
         a, b, tau, I, v0, w0 = res.x
         pred = simulate_fhn(res.x, t_sub)
         metrics = compute_metrics(ecg_sub, pred)
+        mse = np.mean((ecg_sub - pred) ** 2)
 
         qrs_width = row["ECG_S_Peaks"] - row["ECG_Q_Peaks"]
         pt_width = (row["ECG_T_Offsets"] - row["ECG_P_Onsets"]
@@ -69,8 +70,10 @@ def fit_beats(waves_bal, ecg, prefix="", keep_cols=None):
             "v0": v0,
             "w0": w0,
             "symbol": row["symbol"],
+            "r2": metrics.get("r2", np.nan),
             "loss": loss(res.x, t_sub, ecg_sub),
-            **metrics
+            "mse": mse,
+            "mae": metrics.get("mae", np.nan),
         }
 
         # Include extra columns if specified
