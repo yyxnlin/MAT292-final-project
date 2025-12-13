@@ -60,7 +60,6 @@ def fit_beats(waves_bal, ecg, prefix="", keep_cols=None):
                     if pd.notna(row["ECG_P_Onsets"]) and pd.notna(row["ECG_T_Offsets"]) else np.nan)
 
         row_dict = {
-            "recording": row["recording"],
             "qrs_width": qrs_width,
             "pt_width": pt_width,
             "a": a,

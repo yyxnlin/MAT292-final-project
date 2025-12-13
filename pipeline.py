@@ -74,7 +74,7 @@ def run_fhn(data_folder, output_folder, log_file="error_log.txt"):
     for idx, row in tqdm(raw_waves_df.iterrows(), total=len(raw_waves_df), desc="Fitting FHN"):
         try:
             ecg = ecg_cache[row["recording"]]
-            fhn_params_df = fit_beats(pd.DataFrame([row]), ecg, keep_cols=["recording", "symbol_binary"])
+            fhn_params_df = fit_beats(pd.DataFrame([row]), ecg, keep_cols=["recording"])
             fhn_rows.append(fhn_params_df)
         except Exception as e:
             with open(log_file, "a") as f:
@@ -220,9 +220,7 @@ def main():
 
     if "fhn" in args.step:
         run_fhn(args.data_folder, 
-                args.output_folder,
-                args.input, 
-                args.output)
+                args.output_folder)
 
     
     if "filter" in args.step:
