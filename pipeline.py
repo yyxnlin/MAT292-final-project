@@ -123,16 +123,14 @@ def run_filtered_fhn_stats(data_dir, plots_dir, loss_threshold, r2_threshold):
         plots_dir
     )
 
-def run_model(data_dir, plot_folder, class_names ,label_col="symbol_categorized"):
+def run_model(data_dir, plot_folder, class_names ,label_col="symbol_categorized", features=['a', 'b', 'tau', 'I', 'v0', 'w0', 'qrs_width', 'pt_width']):
     print(class_names)
     balanced_waves_df = pd.read_parquet(f"{data_dir}/all_fhn_data_filtered_balanced.parquet")
 
-    features_fhn = ['a', 'b', 'tau', 'I', 'v0', 'w0']
-    features_width = ['qrs_width', 'pt_width']
     X_scaled, y, groups = prepare_knn_data_general(df=balanced_waves_df, 
                                                     label_col=label_col, 
                                                     class_names=class_names,
-                                                    features=features_fhn+features_width)
+                                                    features=features)
 
     # Get/save group counts to CSV
     group_counts = pd.Series(groups).value_counts()
@@ -164,6 +162,10 @@ def main():
     }
     VALID_CLASSIFICATION_TYPES = list(CATEGORY_MAPS.keys())
 
+    ALL_FEATURES = [
+        'a', 'b', 'tau', 'I', 'v0', 'w0', 'qrs_width', 'pt_width'
+    ]
+
     category_map = {}
 
     parser = argparse.ArgumentParser(description="ECG Classification Pipeline")
@@ -183,6 +185,15 @@ def main():
     parser.add_argument("--r2_threshold", type=float, default=0.6)
 
     parser.add_argument(
+        "--features",
+        type=str,
+        nargs="+",
+        default=ALL_FEATURES,
+        choices=ALL_FEATURES,
+        help="Subset of features to use"
+    )
+    
+    parser.add_argument(
         "--categories",
         type=str,
         default="binary",
@@ -197,6 +208,7 @@ def main():
     os.makedirs(args.plots_folder, exist_ok=True)
 
     category_map=CATEGORY_MAPS[args.categories]
+    selected_features = args.features
 
     if "data_stats" in args.step:
         run_data_stats(args.data_folder, args.plots_folder)
@@ -234,7 +246,8 @@ def main():
         run_model(args.output_folder, 
                   plot_folder=args.plots_folder, 
                   class_names=list(category_map.keys())+["Other"],
-                  label_col="symbol_categorized")
+                  label_col="symbol_categorized",
+                  features=selected_features)
 
     
 
