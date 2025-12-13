@@ -14,6 +14,8 @@ from fhn.metrics import compute_metrics
 from fhn.plots import plot_ecg_beats, plot_single_beat, plot_confusion_matrix, plot_counts_stacked, plot_tsne_sample_by_symbol, plot_filtering_summary
 from classification.knn_classifier import *
 
+from joblib import Parallel, delayed
+from tqdm_joblib import tqdm_joblib
 
 def run_data_stats(data_folder, plots_folder):
     ekg_dict, _ = build_record_dicts(data_folder)
@@ -50,7 +52,7 @@ def run_combine(data_folder, output_folder, log_file):
     all_waves_df.to_parquet(f"{output_folder}/all_waves_raw.parquet")
 
 
-def run_fhn(data_folder, output_folder, log_file="error_log.txt"):
+def run_fhn(data_folder, output_folder, log_file="error_log.txt", n_jobs=15):
     ekg_dict, _ = build_record_dicts(data_folder) # change this later so you save all the numbers somewhere, no need to reconstruct ekg_dict again
     raw_waves_df = pd.read_parquet(f"{output_folder}/all_waves_raw.parquet")
     raw_waves_df["symbol_binary"] = raw_waves_df["symbol"].map(
@@ -71,17 +73,19 @@ def run_fhn(data_folder, output_folder, log_file="error_log.txt"):
 
     fhn_rows = []
 
-    for idx, row in tqdm(raw_waves_df.iterrows(), total=len(raw_waves_df), desc="Fitting FHN"):
+    def run_one(i, row):
         try:
             ecg = ecg_cache[row["recording"]]
-            fhn_params_df = fit_beats(pd.DataFrame([row]), ecg, keep_cols=["recording"])
-            fhn_rows.append(fhn_params_df)
+            fhn_params_df = fit_beats(pd.DataFrame([row]), ecg, keep_cols=["recording", "symbol"])
+            return fhn_params_df
         except Exception as e:
             with open(log_file, "a") as f:
-                f.write(f"{row['recording']} (FHN fit error, row {idx}): {repr(e)}\n")
-            print(f"Skipping row {idx} in recording {row['recording']} due to error: {e}")
-            continue
-
+                f.write(f"{row['recording']} (FHN fit error, row {i}): {repr(e)}\n")
+            return None
+    with tqdm_joblib(tqdm(desc="Running batch", total=len(raw_waves_df))) as progress_bar:
+        fhn_rows = Parallel(n_jobs=n_jobs)(
+            delayed(run_one)(i, row) for i, row in raw_waves_df.iterrows()
+        )
     if fhn_rows:
         fhn_df = pd.concat(fhn_rows, ignore_index=True)
         fhn_df.to_parquet(f"{output_folder}/all_fhn_data_raw.parquet")
