@@ -8,7 +8,7 @@ def compute_metrics(ecg_sub, pred):
     except Exception:
         metrics["r2"] = np.nan
     try:
-        metrics["mse"] = mean_squared_error(ecg_sub, pred, squared=False)
+        metrics["mse"] = np.mean((ecg_sub - pred) ** 2)
     except Exception:
         metrics["mse"] = np.nan
     try:
