@@ -4,6 +4,17 @@ import os
 from typing import List
 
 def get_col_counts(files: List[str], target_col="symbol"):
+    """
+    This function counts occurrences of values in a target column across multiple files.
+
+    Parameters:
+    - files: list of file paths to CSV files
+    - target_col: name of the column to count values from
+
+    Returns:
+    - symbols_set: set of unique values found in the target column
+    - counts_df: dataframe of value counts per file
+    """
     counts_list = []
     symbols_set = set()
 

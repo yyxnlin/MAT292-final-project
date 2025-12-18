@@ -6,25 +6,11 @@ from sklearn.model_selection import LeaveOneGroupOut
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 
-def prepare_knn_data(df, features=['a','b','tau','I','v0','w0'], label_col='symbol_binary'):
+
+def prepare_knn_data(df, label_col, class_names, features=None):
     """
-    Prepare features and labels for KNN classification.
+    Prepare standardized features and encoded labels for multi-class KNN classification.
     """
-    df_knn = df.dropna(subset=features + [label_col]).copy()
-    df_knn['label'] = df_knn[label_col].map({'N':0, 'not N':1})
-    
-    X = df_knn[features].values
-    y = df_knn['label'].values
-    groups = df_knn['recording'].values
-
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    
-    return X_scaled, y, groups, df_knn
-
-
-def prepare_knn_data_general(df, label_col, class_names, features=None):
-    
     if features is None:
         features = ['a','b','tau','I','v0','w0']
 

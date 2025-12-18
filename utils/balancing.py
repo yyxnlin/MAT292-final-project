@@ -4,7 +4,17 @@ import numpy as np
 
 def balance_classes(waves_df, label_col, max_per_class, method="undersample"):
     """
-    method = "undersample" or "oversample"
+    Top level function for class distributions using undersampling or oversampling.
+
+    Parameters:
+    - waves_df: dataframe containing samples to be balanced
+    - label_col: name of the column containing class labels
+    - max_per_class: maximum number of samples allowed per class
+    - method: "undersample"/"oversample" (balancing method)
+
+    Returns:
+    - balanced_df: dataframe with balanced class distributions
+    - counts: dictionary of sample counts per class
     """
 
     if method == "undersample":
