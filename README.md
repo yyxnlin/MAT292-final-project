@@ -62,7 +62,7 @@ python -m pipeline --step data_stats combine
 ```
 The above code will execute the `data_stats` and `combine` functions of the pipeline.
 
-### Available steps
+### Pipeline steps
 | Step                 | Description                                                       | Output File / Folder                                      |
 |----------------------|-------------------------------------------------------------------|------------------------------------------------------------|
 | `data_stats`         | Computes basic dataset statistics (symbol counts).                | Plots saved in `plots/`                                   |
@@ -74,7 +74,33 @@ The above code will execute the `data_stats` and `combine` functions of the pipe
 | `model`              | Trains/evaluates KNN classifier (leave-one-record-out).           | Confusion matrix in `plots/`, metrics printed to terminal |
 
 
-### Pipeline options
+## Feature definitions
+
+In total, there are 8 features defined:  
+`a`, `b`, `tau`, `I`, `v0`, `w0`, `qrs_width`, `pt_width`.
+
+A subset of them can be chosen for the classification model using the `--features` setting. A description of them is provided below.
+
+### FitzHugh–Nagumo (FHN) parameters
+
+Each beat’s QRS segment is fit with the FitzHugh–Nagumo model:
+
+```math
+\begin{aligned}
+\dot v &= v - \frac{v^3}{3} - w + I \\
+\dot w &= \frac{v + a - b w}{\tau}
+\end{aligned}
+```
+
+Thus, there are features `a`, `b`, `tau`, `I`, `v0`, `w0`
+
+### Time-domain waveform features
+| Feature | Description |
+|------|------------|
+| `qrs_width` | duration between Q and S peaks |
+| `pt_width` | duration between P onset and T offset |
+
+## Pipeline options
 These have defaults, but you may override them:
 | Argument           | Default         | Description                                                       |
 | ------------------ | --------------- | ----------------------------------------------------------------- |
@@ -83,12 +109,11 @@ These have defaults, but you may override them:
 | `--plots_folder`   | `plots`         | where figures are saved                                           |
 | `--log_file`       | `error_log.txt` | logging file                                                      |
 | `--categories`     | `binary`        | one of `VALID_CLASSIFICATION_TYPES` (e.g. `binary`, `N/L`, etc. defined in `main()`) |
+| `--features`     | all        | FHN/width features used for classifier (`a`, `b`, `tau`, `I`, `v0`, `w0`, `qrs_width`, `pt_width`)|
 | `--max_per_class`  | `None`          | cap on per-class size during balancing                            |
 | `--method`         | `undersample`   | balancing method (`oversample` / `undersample`)                   |
 | `--loss_threshold` | `0.1`           | FHN loss filter threshold                                         |
 | `--r2_threshold`   | `0.6`           | Minimum R² value to keep a beat                                   |
-
-If you do nothing, the defaults are used.
 
 ### Examples for individual steps
 ```
