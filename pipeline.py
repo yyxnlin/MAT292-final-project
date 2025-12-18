@@ -88,6 +88,9 @@ def run_fhn(data_folder, output_folder, log_file="error_log.txt", n_jobs=15):
 
     # helper function for parallel FHN fitting
     def run_one(i, row):
+        import warnings
+        warnings.filterwarnings("ignore")
+
         try:
             ecg = ecg_cache[row["recording"]]
             return fit_beats(
