@@ -2,18 +2,9 @@
 
 This project implements a multi-step electrocardiogram-classification pipeline. Raw ECG waveforms are segmented into beats, fit with the FitzHugh-Nagumo (FHN) model, and used to train a KNN classifier to predict heartbeat categories.
 
-## 1. Data sources
 The data used in this project comes from the [MIT-BIH Arrhythmia Database](https://www.kaggle.com/datasets/protobioengineering/mit-bih-arrhythmia-database-modern-2023). 
 
-The dataset includes:
-* ECG waveform files (`*_ekg.csv`), containing raw ECG signal
-* Annotation files (`*_annotations_1.csv`), containing beat-level labels corresponding to each ECG waveform file
-
-**IMPORTANT:** To speed up preprocessing steps, the preprocessed data (```all_fhn_data_raw.parquet```) can be downloaded directly from this
-[Google Drive](https://drive.google.com/drive/folders/1g3bKZenL-nE8pVDSUNLb76B8ccBv6Ad2?usp=drive_link)
-link. 
-
-## 2. Installation + setup
+## 1. Installation + setup
 ### I. Cloning the repository
 Clone this repository to your local machine:
 
@@ -26,14 +17,10 @@ Alternatively, download this repository as a ```.zip``` and extract it. **The pr
 ```
 mat292-final-project/
 ├── classification
-├── data
-  ├── 100.csv
-  ├── 101.csv
-  ├── ...
 ├── demo
 ...
 ├── pipeline.py
-├── run_config_1.ps1
+├── run.ps1
 ...
 ```
 
@@ -54,27 +41,42 @@ After activating the virtual environment, install dependencies by running the fo
 python -m pip install -r requirements.txt
 ```
 
-## 3. Data setup
+## 2. Data sources
 ### Option A: Preprocessed data (recommended for quick reproduction)
 To skip the most time-consuming steps (wave extraction + FHN fitting), you can **download the preprocessed dataset** from the Google Drive link above (also [here](https://drive.google.com/drive/folders/1g3bKZenL-nE8pVDSUNLb76B8ccBv6Ad2?usp=drive_link)):
 
-Create an ```output``` folder **under the root directory**, and place the downloaded ```all_fhn_data_raw.parquet``` file inside:
+You **must** place the ```/data``` and ```/output``` folders **under your root directory**, with the proper names.
+
+Your folder structure should now look like this:
 ```
-output/
-├── all_fhn_data_raw.parquet
+mat292-final-project/
+├── classification
+├── data                           <---- downloaded data folder
+  ├── xxx_ekg.csv
+  ├── xxx_annotations_1.csv
+  ├── ...
+...
+├── output/                        <---- downloaded output folder
+  ├── all_fhn_data_raw.parquet
+...
+├── pipeline.py
 ...
 ```
 
 ### Option B: Raw data (optional, slower)
-If you want to run the entire preprocessing pipeline, place all downloaded ECG and annotation CSV files in the `data/` directory before running the pipeline.
+If you want to run the entire preprocessing pipeline, download the **data** folder from the [Google Drive](https://drive.google.com/drive/folders/1g3bKZenL-nE8pVDSUNLb76B8ccBv6Ad2?usp=drive_link). Place all CSV files in the `data/` folder **under the root directory** before running the pipeline.
 
 ```
-data/
-├── xxx_ekg.csv
-├── xxx_annotations_1.csv
+mat292-final-project/
+├── classification
+├── data                           <---- downloaded data folder
+  ├── xxx_ekg.csv
+  ├── xxx_annotations_1.csv
+  ├── ...
+...
+├── pipeline.py
 ...
 ```
-The data can be downloaded from the [MIT-BIH Arrhythmia Database](https://www.kaggle.com/datasets/protobioengineering/mit-bih-arrhythmia-database-modern-2023). 
 
 ## 3. Running configurations
 ### Option 1 (Recommended): Running experiments with Python
