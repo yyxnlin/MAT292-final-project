@@ -2,16 +2,6 @@
 
 This project implements a multi-step electrocardiogram-classification pipeline. Raw ECG waveforms are segmented into beats, fit with the FitzHugh-Nagumo (FHN) model, and used to train a KNN classifier to predict heartbeat categories.
 
-## Table of Contents
-
-1. [Data sources](#data-sources)
-2. [Installation + setup](#installation--setup)
-3. [Option 1: Quick start](#option-1-quick-start)
-4. [Option 2: Running the pipeline step-by-step](#option-2-running-the-pipeline-step-by-step)
-    - [Pipeline steps](#pipeline-steps)
-    - [Feature definitions](#feature-definitions)
-    - [Pipeline options](#pipeline-options)
-5. [Examples](#examples-for-individual-steps)
 ## Data sources
 The data used in this project comes from the [MIT-BIH Arrhythmia Database](https://www.kaggle.com/datasets/protobioengineering/mit-bih-arrhythmia-database-modern-2023). 
 
@@ -20,6 +10,10 @@ The dataset includes:
 * Annotation files (`*_annotations_1.csv`), containing beat-level labels corresponding to each ECG waveform file
 
 Place all downloaded CSVs in the `data/` directory before running the pipeline.
+
+**IMPORTANT:** To speed up preprocessing steps, the preprocessed data (```all_fhn_data_raw.parquet```) can be downloaded directly from this
+[Google Drive](https://drive.google.com/drive/folders/1g3bKZenL-nE8pVDSUNLb76B8ccBv6Ad2?usp=drive_link)
+link.
 
 ## Installation + setup
 ### 1. Install dependencies
@@ -35,12 +29,49 @@ data/
 ├── xxx_annotations_1.csv
 ...
 ```
-Pipeline outputs go to:
+
+## Option 1: Quick start (using downloaded preprocessed data)
+This option is recommended if you want to reproduce figures and classification results without running the long preprocessing steps.
+Place the downloaded ```all_fhn_data_raw.parquet``` file under the ```output``` folder:
 ```
-output/     # Parquet files for each stage
-plots/      # Generated figures, t-SNE plots, confusion matrices, etc.
+output/
+├── all_fhn_data_raw.parquet
+...
 ```
-## Option 1: Quick start
+
+To get the results for the **binary** classification model, run the following in command line:
+```
+python -m pipeline \
+    --step filter filtered_fhn_stats balance model \
+    --data_folder data \
+    --output_folder output \
+    --plots_folder plots_binary \
+    --categories binary \
+    --method undersample \
+    --loss_threshold 0.1 \
+    --r2_threshold 0.8
+```
+
+To get the results for the **N/L/Other** classification model, run the following in command line:
+```
+python -m pipeline \
+    --step filter filtered_fhn_stats balance model \
+    --data_folder data \
+    --output_folder output \
+    --plots_folder plots_binary \
+    --categories N/L \
+    --method undersample \
+    --loss_threshold 0.1 \
+    --r2_threshold 0.8
+```
+
+* Produces intermediate Parquet files in `output/`
+* Generates all plots and tables in `plots/`
+* **Note:** This skips the ```combine``` and ```filter``` steps as the raw data has already been downloaded.
+This is the minimal command to reproduce all results in the report.
+
+
+## Option 2: Run everything
 To run the **entire pipeline** in one command:
 ```
 python -m pipeline \
@@ -51,14 +82,14 @@ python -m pipeline \
     --categories binary \
     --method undersample \
     --loss_threshold 0.1 \
-    --r2_threshold 0.6
+    --r2_threshold 0.8
 ```
 * Produces intermediate Parquet files in `output/`
 * Generates plots (t-SNE, confusion matrices, counts) in `plots/`
 
 This is the minimal command to reproduce all results in the report.
 
-## Option 2: Running the pipeline step-by-step
+## Option 3: Running the pipeline step-by-step
 The workflow is controlled through the `--step` argument, in the following format:
 ```
 python -m pipeline --step <steps...> [options]
