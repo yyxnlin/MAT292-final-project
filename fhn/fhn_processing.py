@@ -78,7 +78,7 @@ def fit_beats(waves_bal, ecg, prefix="", keep_cols=None):
     results = []
 
     # iterate through ECG beats and fit FHN to each beat
-    for _, row in tqdm(waves_bal.iterrows(), total=len(waves_bal), desc="Fitting FHN"):
+    for _, row in waves_bal.iterrows():
         # skip beats with missing Q or S peak indices
         if pd.isna(row["ECG_Q_Peaks"]) or pd.isna(row["ECG_S_Peaks"]):
             continue
@@ -139,5 +139,4 @@ def fit_beats(waves_bal, ecg, prefix="", keep_cols=None):
 
     # plot_ecg_beats(ecg, rpeaks, waves_df, filename=f"ecg_{prefix}")
     fhn_df = pd.DataFrame(results)
-    print(f"Fitted {len(fhn_df)} beats for {prefix}.")
     return fhn_df

@@ -16,3 +16,14 @@ def compute_metrics(ecg_sub, pred):
     except Exception:
         metrics["mae"] = np.nan
     return metrics
+
+
+def compute_fhn_metric_averages(df, metrics=("loss", "r2", "mae")):
+    """
+    Compute average values of selected FHN fitting metrics.
+    """
+    missing = [m for m in metrics if m not in df.columns]
+    if missing:
+        raise ValueError(f"Missing columns in DataFrame: {missing}")
+
+    return df[list(metrics)].mean()

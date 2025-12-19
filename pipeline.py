@@ -9,6 +9,7 @@ from tqdm_joblib import tqdm_joblib
 from classification.knn_classifier import *
 from fhn.data_statistics import get_col_counts
 from fhn.fhn_processing import fit_beats,  process_record
+from fhn.metrics import compute_fhn_metric_averages
 from fhn.plots import (plot_confusion_matrix, plot_counts_stacked,
                        plot_filtering_summary,
                        plot_tsne_sample_by_symbol)
@@ -168,6 +169,19 @@ def run_filtered_fhn_stats(data_dir, plots_dir, loss_threshold, r2_threshold):
         plots_dir
     )
 
+    # compute averages
+    raw_avgs = compute_fhn_metric_averages(fhn_df)
+    filtered_avgs = compute_fhn_metric_averages(fhn_df_filtered)
+
+    # combine into one table
+    avg_df = pd.DataFrame(
+        [raw_avgs, filtered_avgs],
+        index=["raw", "filtered"]
+    )
+
+    # save to CSV
+    avg_df.to_csv(f"{plots_dir}/fhn_metric_averages.csv")
+
 def run_model(data_dir, plot_folder, class_names ,label_col="symbol_categorized", features=['a', 'b', 'tau', 'I', 'v0', 'w0', 'qrs_width', 'pt_width']):
     print(class_names)
     balanced_waves_df = pd.read_parquet(f"{data_dir}/all_fhn_data_filtered_balanced.parquet")
@@ -215,7 +229,7 @@ def main():
     parser = argparse.ArgumentParser(description="ECG Classification Pipeline")
 
     parser.add_argument("--step", type=str, required=True, nargs="+",
-                        choices=["data_stats", "combine", "fhn", "filter", "filtered_fhn_stats", "balance", "model", "run_filtered_stats"])
+                        choices=["data_stats", "combine", "fhn", "filter", "filtered_fhn_stats", "balance", "model"])
 
     parser.add_argument("--data_folder", type=str, default="data")
     parser.add_argument("--output_folder", type=str, default="output")
