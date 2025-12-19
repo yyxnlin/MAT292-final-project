@@ -2,21 +2,19 @@
 
 This project implements a multi-step electrocardiogram-classification pipeline. Raw ECG waveforms are segmented into beats, fit with the FitzHugh-Nagumo (FHN) model, and used to train a KNN classifier to predict heartbeat categories.
 
-## Data sources
+## 1. Data sources
 The data used in this project comes from the [MIT-BIH Arrhythmia Database](https://www.kaggle.com/datasets/protobioengineering/mit-bih-arrhythmia-database-modern-2023). 
 
 The dataset includes:
 * ECG waveform files (`*_ekg.csv`), containing raw ECG signal
 * Annotation files (`*_annotations_1.csv`), containing beat-level labels corresponding to each ECG waveform file
 
-Place all downloaded CSVs in the `data/` directory before running the pipeline.
-
 **IMPORTANT:** To speed up preprocessing steps, the preprocessed data (```all_fhn_data_raw.parquet```) can be downloaded directly from this
 [Google Drive](https://drive.google.com/drive/folders/1g3bKZenL-nE8pVDSUNLb76B8ccBv6Ad2?usp=drive_link)
 link. 
 
-## Installation + setup
-### 1. Cloning the repository
+## 2. Installation + setup
+### I. Cloning the repository
 Clone this repository to your local machine:
 
 ```bash
@@ -39,7 +37,7 @@ mat292-final-project/
 ...
 ```
 
-### 2. Virtual environment (recommended)
+### II. Virtual environment (recommended)
 It is strongly recommended to use a virtual environment to ensure dependency isolation.
 
 From the **root directory**:
@@ -48,7 +46,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-### 3. Dependencies
+### III. Dependencies
 All required Python packages are listed in ```requirements.txt```.
 
 After activating the virtual environment, install dependencies by running the following command:
@@ -56,8 +54,8 @@ After activating the virtual environment, install dependencies by running the fo
 python -m pip install -r requirements.txt
 ```
 
-## Data setup
-### Option 1: Preprocessed data (recommended for quick reproduction)
+## 3. Data setup
+### Option A: Preprocessed data (recommended for quick reproduction)
 To skip the most time-consuming steps (wave extraction + FHN fitting), you can **download the preprocessed dataset** from the Google Drive link above (also [here](https://drive.google.com/drive/folders/1g3bKZenL-nE8pVDSUNLb76B8ccBv6Ad2?usp=drive_link)):
 
 Create an ```output``` folder **under the root directory**, and place the downloaded ```all_fhn_data_raw.parquet``` file inside:
@@ -67,17 +65,19 @@ output/
 ...
 ```
 
-### Option 2: Raw data (optional, slower)
-If you want to run the entire preprocessing pipeline, place all raw ECG and annotation CSV files in:
+### Option B: Raw data (optional, slower)
+If you want to run the entire preprocessing pipeline, place all downloaded ECG and annotation CSV files in the `data/` directory before running the pipeline.
+
 ```
 data/
 ├── xxx_ekg.csv
 ├── xxx_annotations_1.csv
 ...
 ```
+The data can be downloaded from the [MIT-BIH Arrhythmia Database](https://www.kaggle.com/datasets/protobioengineering/mit-bih-arrhythmia-database-modern-2023). 
 
-## Option 1: Running experiments without PowerShell
-### Available configurations
+## 3. Running configurations
+### Option 1 (Recommended): Running experiments with Python
 Run the following commands from the project root.
 
 **1. Binary (Normal vs. Abnormal), all features**
@@ -100,60 +100,48 @@ python run.py 3
 python run.py 4
 ```
 
-**These outputs directly reproduce the figures and results reported in the paper.**
-
-
-## Option 2: Running experiments with PowerShell scripts
+### Option 2: Running experiments with PowerShell scripts
 Four PowerShell scripts are provided, each corresponding to a configuration used in the report.
 All scripts automatically:
 - Install dependencies if needed
 - Skip preprocessing steps if cached files exist
 - Generate plots and tables shown in the report in configuration-specific folders
 
-⚠️ **IMPORTANT:** On some Windows systems, running `.ps1` scripts may be disabled by default.
+> ⚠️ **IMPORTANT:** You should install the PowerShell extension on VSCode if you want to use this option.
 
-If you see an error like:
-> *Running scripts is disabled on this system*
-
-Run the following command once in PowerShell:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-```
-
-
-### Available configurations
 Run the following commands from the project root.
 
 **1. Binary (Normal vs. Abnormal), all features**
 ```powershell
-.\run_config_1.ps1
+.\scripts\run_config_1.ps1
 ```
 
 **2. Binary (Normal vs. Abnormal), FHN features only**
 ```powershell
-.\run_config_2.ps1
+.\scripts\run_config_2.ps1
 ```
 
 **3. Binary (Normal vs. Abnormal), width features only**
 ```powershell
-.\run_config_3.ps1
+.\scripts\run_config_3.ps1
 ```
 
 **4. N/L/Other, all features**
 ```powershell
-.\run_config_4.ps1
+.\scripts\run_config_4.ps1
 ```
+
 ##  Outputs
 Each script produces:
 - Intermediate Parquet datasets in output/
 - Tables and plots (t-SNE, confusion matrices, class counts, classification reports) in corresponding ```config_*``` folder
 
+Additionally, plots for sample FHN fitting can be found inside the notebook files in the ```/demo``` folder under the root directory. 
+
+**These outputs directly reproduce the figures and results reported in the paper.**
 
 
-
-
-## Advanced usage (Optional)
+## Optional: Advanced usage
 > ⚠️ **Do not use for standard execution.**  
 > The scripts provided above can already run experiments. Don't try this unless you really really insist on doing so...
 
@@ -162,13 +150,13 @@ The pipeline itself can be run with ```pipeline.py``` and controlled through the
 python -m pipeline --step <steps...> [options]
 ```
 
-You can run **one or multiple steps** at a time.
+You can run **one or multiple steps** at a time, and specify your own configurations (e.g. r^2 threshold, loss threshold).
 
 Example:
 ```powershell
-python -m pipeline --step data_stats combine 
+python -m pipeline --step data_stats combine --r2_threshold 0.6 --loss_threshold 0.1
 ```
-The above code will execute the `data_stats` and `combine` functions of the pipeline.
+The above code will execute the `data_stats` and `combine` functions of the pipeline, with an r^2 threshold of 0.6 and loss threshold of 0.1.
 
 ### Pipeline steps
 | Step                 | Description                                                       | Output File / Folder                                      |
