@@ -13,29 +13,51 @@ Place all downloaded CSVs in the `data/` directory before running the pipeline.
 
 **IMPORTANT:** To speed up preprocessing steps, the preprocessed data (```all_fhn_data_raw.parquet```) can be downloaded directly from this
 [Google Drive](https://drive.google.com/drive/folders/1g3bKZenL-nE8pVDSUNLb76B8ccBv6Ad2?usp=drive_link)
-link.
+link. 
 
 ## Installation + setup
-### 1. Virtual environment (recommended)
+### 1. Cloning the repository
+Clone this repository to your local machine:
+
+```bash
+git clone https://github.com/yyxnlin/MAT292-final-project
+cd MAT292-final-project
+```
+
+Alternatively, download this repository as a ```.zip``` and extract it. **The project root directory should be ```MAT292-final-project```.**:
+```
+mat292-final-project/
+├── classification
+├── data
+  ├── 100.csv
+  ├── 101.csv
+  ├── ...
+├── demo
+...
+├── pipeline.py
+├── run_config_1.ps1
+...
+```
+
+### 2. Virtual environment (recommended)
 It is strongly recommended to use a virtual environment to ensure dependency isolation.
 
-From the project root:
+From the **root directory**:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-### 2. Dependencies
+### 3. Dependencies
 All required Python packages are listed in ```requirements.txt```.
 
 When you run any of the provided PowerShell scripts (```run_*.ps1```), dependencies are automatically installed if needed using the active Python environment.
 
-
 ## Data setup
 ### Option 1: Preprocessed data (recommended for quick reproduction)
-To skip the most time-consuming steps (wave extraction + FHN fitting), you can download the preprocessed dataset [here](https://drive.google.com/drive/folders/1g3bKZenL-nE8pVDSUNLb76B8ccBv6Ad2?usp=drive_link):
+To skip the most time-consuming steps (wave extraction + FHN fitting), you can **download the preprocessed dataset** from the Google Drive link above (also [here](https://drive.google.com/drive/folders/1g3bKZenL-nE8pVDSUNLb76B8ccBv6Ad2?usp=drive_link)):
 
-Place the downloaded ```all_fhn_data_raw.parquet``` file under the ```output``` folder:
+Create an ```output``` folder **under the root directory**, and place the downloaded ```all_fhn_data_raw.parquet``` file inside:
 ```
 output/
 ├── all_fhn_data_raw.parquet
@@ -57,6 +79,20 @@ All scripts automatically:
 - Install dependencies if needed
 - Skip preprocessing steps if cached files exist
 - Generate plots and tables shown in the report in configuration-specific folders
+
+
+⚠️ **IMPORTANT:** On some Windows systems, running `.ps1` scripts may be disabled by default.
+
+If you see an error like:
+> *Running scripts is disabled on this system*
+
+Run the following command once in PowerShell:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+If it still does not work, the pipeline can still run manually as described in the [Advanced usage (Optional)](#advanced-usage-optional) section below.
 
 
 ### Available configurations
@@ -90,8 +126,13 @@ Each script produces:
 
 ## Advanced usage (Optional)
 > ⚠️ **Do not use for standard execution.**  
-> The PowerShell scripts provided in this repository can already run experiments.
-> 
+> The PowerShell scripts provided in this repository can already run experiments. Don't try this unless the powershell doesn't work.
+
+After activating the virtual environment, install dependencies by running the following command:
+```powershell
+python -m pip install -r requirements.txt
+```
+
 The pipeline itself can be run with ```pipeline.py``` and controlled through the `--step` argument, in the following format:
 ```
 python -m pipeline --step <steps...> [options]
