@@ -51,7 +51,10 @@ python -m venv .venv
 ### 3. Dependencies
 All required Python packages are listed in ```requirements.txt```.
 
-When you run any of the provided PowerShell scripts (```run_*.ps1```), dependencies are automatically installed if needed using the active Python environment.
+After activating the virtual environment, install dependencies by running the following command:
+```powershell
+python -m pip install -r requirements.txt
+```
 
 ## Data setup
 ### Option 1: Preprocessed data (recommended for quick reproduction)
@@ -73,13 +76,39 @@ data/
 ...
 ```
 
-## Running experiments (PowerShell scripts)
+## Option 1: Running experiments without PowerShell
+### Available configurations
+Run the following commands from the project root.
+
+**1. Binary (Normal vs. Abnormal), all features**
+```
+python run.py 1
+```
+
+**2. Binary (Normal vs. Abnormal), FHN features only**
+```
+python run.py 2
+```
+
+**3. Binary (Normal vs. Abnormal), width features only**
+```
+python run.py 3
+```
+
+**4. N/L/Other, all features**
+```
+python run.py 4
+```
+
+**These outputs directly reproduce the figures and results reported in the paper.**
+
+
+## Option 2: Running experiments with PowerShell scripts
 Four PowerShell scripts are provided, each corresponding to a configuration used in the report.
 All scripts automatically:
 - Install dependencies if needed
 - Skip preprocessing steps if cached files exist
 - Generate plots and tables shown in the report in configuration-specific folders
-
 
 ⚠️ **IMPORTANT:** On some Windows systems, running `.ps1` scripts may be disabled by default.
 
@@ -91,8 +120,6 @@ Run the following command once in PowerShell:
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
-
-If it still does not work, the pipeline can still run manually as described in the [Advanced usage (Optional)](#advanced-usage-optional) section below.
 
 
 ### Available configurations
@@ -122,16 +149,13 @@ Each script produces:
 - Intermediate Parquet datasets in output/
 - Tables and plots (t-SNE, confusion matrices, class counts, classification reports) in corresponding ```config_*``` folder
 
-**These outputs directly reproduce the figures and results reported in the paper.**
+
+
+
 
 ## Advanced usage (Optional)
 > ⚠️ **Do not use for standard execution.**  
-> The PowerShell scripts provided in this repository can already run experiments. Don't try this unless the powershell doesn't work.
-
-After activating the virtual environment, install dependencies by running the following command:
-```powershell
-python -m pip install -r requirements.txt
-```
+> The scripts provided above can already run experiments. Don't try this unless you really really insist on doing so...
 
 The pipeline itself can be run with ```pipeline.py``` and controlled through the `--step` argument, in the following format:
 ```
