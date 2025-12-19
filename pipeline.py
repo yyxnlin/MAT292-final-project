@@ -7,7 +7,7 @@ from tqdm import tqdm
 from tqdm_joblib import tqdm_joblib
 
 from classification.knn_classifier import *
-from fhn.data_statistics import get_col_counts
+from fhn.data_statistics import get_col_counts, save_filtering_summary
 from fhn.fhn_processing import fit_beats,  process_record
 from fhn.metrics import compute_fhn_metric_averages
 from fhn.plots import (plot_confusion_matrix, plot_counts_stacked,
@@ -17,6 +17,8 @@ from utils.balancing import balance_classes
 from utils.data_filtering import categorize_symbols, filter_df_by_threshold
 from utils.file_utils import build_record_dicts
 
+import warnings
+warnings.filterwarnings("ignore")
 
 def run_data_stats(data_folder, plots_folder):
     # load record filenames without loading full ECG signals
@@ -58,7 +60,6 @@ def run_combine(data_folder, output_folder, log_file):
         except Exception as e:
             with open(log_file, "a") as f:
                 f.write(f"{number}: {repr(e)}\n")
-            print(f"Error processing {number}: {e}")
 
     # combine all records into a single dataframe
     all_waves_df = pd.concat(all_waves, ignore_index=True)
@@ -84,7 +85,6 @@ def run_fhn(data_folder, output_folder, log_file="error_log.txt", n_jobs=15):
             # log ECG loading errors separately
             with open(log_file, "a") as f:
                 f.write(f"{number} (ECG load error): {repr(e)}\n")
-            print(f"Error loading ECG for record {number}: {e}")
             continue
 
     # helper function for parallel FHN fitting
@@ -116,8 +116,6 @@ def run_fhn(data_folder, output_folder, log_file="error_log.txt", n_jobs=15):
     if fhn_rows:
         fhn_df = pd.concat(fhn_rows, ignore_index=True)
         fhn_df.to_parquet(f"{output_folder}/all_fhn_data_raw.parquet")
-    else:
-        print("No FHN results to save.")
 
 
 def run_filter(data_dir, loss_threshold, r2_threshold):
@@ -152,18 +150,29 @@ def run_balance(data_dir, max_per_class, method, category_map):
     )
     balanced_waves_df.to_parquet(f"{data_dir}/all_fhn_data_filtered_balanced.parquet")
 
-def run_filtered_fhn_stats(data_dir, plots_dir, loss_threshold, r2_threshold):
+def run_filtered_fhn_stats(data_dir, plots_dir, loss_threshold, r2_threshold, features):
     # load raw and filtered datasets
     fhn_df = pd.read_parquet(f"{data_dir}/all_fhn_data_raw.parquet")
     fhn_df_filtered = pd.read_parquet(f"{data_dir}/all_fhn_data_filtered.parquet")
+    fhn_df_balanced = pd.read_parquet(f"{data_dir}/all_fhn_data_filtered_balanced.parquet")
 
     # plot tsne by symbol
-    plot_tsne_sample_by_symbol(fhn_df_filtered, plots_dir, max_sample_size=1000)
+    plot_tsne_sample_by_symbol(fhn_df_filtered, plots_dir, max_sample_size=1000, filename="tsne_filtered")
+    plot_tsne_sample_by_symbol(fhn_df_balanced, plots_dir, max_sample_size=1000, filename="tsne_balanced", col="symbol_categorized", features = features)
 
     # summarize filtering stats
-    plot_filtering_summary(
+    # plot_filtering_summary(
+    #     fhn_df,
+    #     fhn_df_filtered,
+    #     loss_threshold,
+    #     r2_threshold,
+    #     plots_dir
+    # )
+
+    _ = save_filtering_summary(
         fhn_df,
         fhn_df_filtered,
+        fhn_df_balanced,
         loss_threshold,
         r2_threshold,
         plots_dir
@@ -183,7 +192,6 @@ def run_filtered_fhn_stats(data_dir, plots_dir, loss_threshold, r2_threshold):
     avg_df.to_csv(f"{plots_dir}/fhn_metric_averages.csv")
 
 def run_model(data_dir, plot_folder, class_names ,label_col="symbol_categorized", features=['a', 'b', 'tau', 'I', 'v0', 'w0', 'qrs_width', 'pt_width']):
-    print(class_names)
     balanced_waves_df = pd.read_parquet(f"{data_dir}/all_fhn_data_filtered_balanced.parquet")
 
     X_scaled, y, groups = prepare_knn_data(df=balanced_waves_df, 
@@ -192,10 +200,10 @@ def run_model(data_dir, plot_folder, class_names ,label_col="symbol_categorized"
                                                     features=features)
 
     # Get/save group counts to CSV
-    group_counts = pd.Series(groups).value_counts()
-    group_counts_df = group_counts.reset_index()
-    group_counts_df.columns = ["group", "count"]
-    group_counts_df.to_csv(f"{plot_folder}/group_counts.csv", index=False)
+    # group_counts = pd.Series(groups).value_counts()
+    # group_counts_df = group_counts.reset_index()
+    # group_counts_df.columns = ["group", "count"]
+    # group_counts_df.to_csv(f"{plot_folder}/group_counts.csv", index=False)
 
 
     y_preds = knn_leave_one_group_out(X_scaled, y, groups)
@@ -287,19 +295,20 @@ def main():
         run_filter(args.output_folder,
                    args.loss_threshold, 
                    args.r2_threshold)
-        
-    if "filtered_fhn_stats" in args.step:
-        run_filtered_fhn_stats(args.output_folder,
-                args.plots_folder,
-                args.loss_threshold,
-                args.r2_threshold)
-        
+  
     if "balance" in args.step:
         run_balance(args.output_folder,
                     args.max_per_class, 
                     args.method, 
                     category_map)
 
+    if "filtered_fhn_stats" in args.step:
+        run_filtered_fhn_stats(args.output_folder,
+                args.plots_folder,
+                args.loss_threshold,
+                args.r2_threshold,
+                selected_features)
+        
     if "model" in args.step:
         run_model(args.output_folder, 
                   plot_folder=args.plots_folder, 

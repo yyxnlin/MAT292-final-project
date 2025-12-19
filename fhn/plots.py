@@ -181,7 +181,7 @@ def plot_confusion_matrix(cm, labels=['N','not N'], output_folder="plots"):
 
 
     
-def plot_tsne_sample_by_symbol(df, output_folder, max_sample_size=1000, features=None):
+def plot_tsne_sample_by_symbol(df, output_folder, max_sample_size=1000, features=None, filename="tsne", col="symbol"):
     if features is None:
         features = ['a','b','tau','I','v0','w0']
 
@@ -201,7 +201,7 @@ def plot_tsne_sample_by_symbol(df, output_folder, max_sample_size=1000, features
     plot_df = pd.DataFrame({
         "tsne1": tsne_coords[:,0],
         "tsne2": tsne_coords[:,1],
-        "symbol": df["symbol"].values
+        "symbol": df[col].values
     })
 
     # --- Plot ---
@@ -225,7 +225,7 @@ def plot_tsne_sample_by_symbol(df, output_folder, max_sample_size=1000, features
         ncol=1
     )
     plt.grid(True)
-    plt.savefig(f"{output_folder}/tsne.png", dpi=300)
+    plt.savefig(f"{output_folder}/{filename}.png", dpi=300)
 
 
 def plot_filtering_summary(

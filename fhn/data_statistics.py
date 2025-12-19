@@ -33,3 +33,59 @@ def get_col_counts(files: List[str], target_col="symbol"):
             counts_df.loc[counts_df.index[i], sym] = val
 
     return symbols_set, counts_df
+
+
+def save_filtering_summary(
+    df_raw,
+    df_filt,
+    df_balanced,
+    loss_threshold,
+    r2_threshold,
+    output_folder,
+    filename="filtering_summary.csv"
+):
+    os.makedirs(output_folder, exist_ok=True)
+
+    datasets = {
+        "raw": df_raw,
+        "filtered": df_filt,
+        "balanced": df_balanced
+    }
+
+    rows = []
+
+    for name, df in datasets.items():
+        total_rows = len(df)
+
+        # Extract metrics
+        L = df["loss"].dropna()
+        R = df["r2"].dropna()
+
+        # Apply validity rules
+        L = L[(L >= 0) & (L <= (loss_threshold if name != "raw" else 5))]
+        R = R[(R >= (r2_threshold if name != "raw" else 0)) & (R <= 1)]
+
+        rows.append({
+            "dataset": name,
+            "metric": "loss",
+            "total_rows": total_rows,
+            "valid_rows": len(L),
+            "mean": L.mean(),
+            "median": L.median()
+        })
+
+        rows.append({
+            "dataset": name,
+            "metric": "r2",
+            "total_rows": total_rows,
+            "valid_rows": len(R),
+            "mean": R.mean(),
+            "median": R.median()
+        })
+
+    summary_df = pd.DataFrame(rows)
+
+    out_path = os.path.join(output_folder, filename)
+    summary_df.to_csv(out_path, index=False)
+
+    return summary_df
