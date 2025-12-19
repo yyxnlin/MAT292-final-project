@@ -20,6 +20,9 @@ from utils.file_utils import build_record_dicts
 import warnings
 warnings.filterwarnings("ignore")
 
+def log_step(step_idx, total_steps, message):
+    print(f"\n[{step_idx}/{total_steps}] {message}")
+
 def run_data_stats(data_folder, plots_folder):
     # load record filenames without loading full ECG signals
     ekg_dict, _ = build_record_dicts(data_folder)
@@ -34,6 +37,13 @@ def run_data_stats(data_folder, plots_folder):
 
 
 def run_combine(data_folder, output_folder, log_file):
+    out_path = os.path.join(output_folder, "all_waves_raw.parquet")
+
+    # if cached, skip
+    if os.path.exists(out_path):
+        print(f"   [i] Found existing combined wave data at {out_path}. Skipping combine step.")
+        return
+    
     # ensure output directory exists
     os.makedirs(output_folder, exist_ok=True)
 
@@ -66,7 +76,14 @@ def run_combine(data_folder, output_folder, log_file):
     all_waves_df.to_parquet(f"{output_folder}/all_waves_raw.parquet")
 
 
-def run_fhn(data_folder, output_folder, log_file="error_log.txt", n_jobs=15):
+def run_fhn(data_folder, output_folder, log_file="error_log.txt", n_jobs=-1):
+    out_path = os.path.join(output_folder, "all_fhn_data_raw.parquet")
+
+    # if cached, skip
+    if os.path.exists(out_path):
+        print(f"   [i] Found existing FHN data at {out_path}. Skipping FHN fitting.")
+        return
+    
     # reload record dictionary to map recordings to ECG files
     ekg_dict, _ = build_record_dicts(data_folder)
 
@@ -115,7 +132,7 @@ def run_fhn(data_folder, output_folder, log_file="error_log.txt", n_jobs=15):
     # save results
     if fhn_rows:
         fhn_df = pd.concat(fhn_rows, ignore_index=True)
-        fhn_df.to_parquet(f"{output_folder}/all_fhn_data_raw.parquet")
+        fhn_df.to_parquet(out_path)
 
 
 def run_filter(data_dir, loss_threshold, r2_threshold):
@@ -278,43 +295,61 @@ def main():
     selected_features = args.features
 
     # run corresponding pipeline steps
-    if "data_stats" in args.step:
+    steps = args.step
+    total_steps = len(steps)
+    step_idx = 1
+
+    if "data_stats" in steps:
+        log_step(step_idx, total_steps, "Computing dataset statistics")
         run_data_stats(args.data_folder, args.plots_folder)
+        step_idx += 1
 
-    if "combine" in args.step:
-        run_combine(args.data_folder,
-                    args.output_folder, 
-                    args.log_file)
+    if "combine" in steps:
+        log_step(step_idx, total_steps, "Combining raw ECG records")
+        run_combine(args.data_folder, args.output_folder, args.log_file)
+        step_idx += 1
 
-    if "fhn" in args.step:
-        run_fhn(args.data_folder, 
-                args.output_folder)
+    if "fhn" in steps:
+        log_step(step_idx, total_steps, "Fitting FitzHugh–Nagumo model")
+        run_fhn(args.data_folder, args.output_folder)
+        step_idx += 1
 
-    
-    if "filter" in args.step:
-        run_filter(args.output_folder,
-                   args.loss_threshold, 
-                   args.r2_threshold)
-  
-    if "balance" in args.step:
-        run_balance(args.output_folder,
-                    args.max_per_class, 
-                    args.method, 
-                    category_map)
+    if "filter" in steps:
+        log_step(step_idx, total_steps, "Filtering beats by fit quality")
+        run_filter(args.output_folder, args.loss_threshold, args.r2_threshold)
+        step_idx += 1
 
-    if "filtered_fhn_stats" in args.step:
-        run_filtered_fhn_stats(args.output_folder,
-                args.plots_folder,
-                args.loss_threshold,
-                args.r2_threshold,
-                selected_features)
-        
-    if "model" in args.step:
-        run_model(args.output_folder, 
-                  plot_folder=args.plots_folder, 
-                  class_names=list(category_map.keys())+["Other"],
-                  label_col="symbol_categorized",
-                  features=selected_features)
+    if "balance" in steps:
+        log_step(step_idx, total_steps, "Balancing class distributions")
+        run_balance(
+            args.output_folder,
+            args.max_per_class,
+            args.method,
+            category_map
+        )
+        step_idx += 1
+
+    if "filtered_fhn_stats" in steps:
+        log_step(step_idx, total_steps, "Generating filtered FHN statistics and visualizations")
+        run_filtered_fhn_stats(
+            args.output_folder,
+            args.plots_folder,
+            args.loss_threshold,
+            args.r2_threshold,
+            selected_features
+        )
+        step_idx += 1
+
+    if "model" in steps:
+        log_step(step_idx, total_steps, "Training and evaluating KNN classifier")
+        run_model(
+            args.output_folder,
+            plot_folder=args.plots_folder,
+            class_names=list(category_map.keys()) + ["Other"],
+            label_col="symbol_categorized",
+            features=selected_features
+        )
+
 
     
 
