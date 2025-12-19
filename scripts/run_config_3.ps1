@@ -9,6 +9,8 @@ param (
     [string]$PlotsDir = "config_3_width_only"
 )
 
+Set-Location (Split-Path $PSScriptRoot -Parent)
+
 # --- Internal Configuration ---
 $env:PYTHONWARNINGS = "ignore"
 $RawDataPath = Join-Path $OutputDir "all_waves_raw.parquet"

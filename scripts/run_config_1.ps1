@@ -1,7 +1,7 @@
 param (
     [string[]]$Steps = @("data_stats", "combine", "fhn", "filter", "filtered_fhn_stats", "balance", "model"),
     [string]$Categories = "binary",
-    [string[]]$Features = @("a","b","tau","I","v0","w0", "pt_width", "qrs_width"),
+    [string[]]$Features = @("a","b","tau","I","v0","w0","pt_width","qrs_width"),
     [float]$LossThreshold = 0.1,
     [float]$R2Threshold = 0.8,
     [string]$DataDir = "data",
@@ -9,10 +9,13 @@ param (
     [string]$PlotsDir = "config_1_all_features"
 )
 
+Set-Location (Split-Path $PSScriptRoot -Parent)
+
 # --- Internal Configuration ---
-$env:PYTHONWARNINGS = "ignore"
+$PlotsDir = Join-Path $PlotsBaseDir $PlotsSubDir
 $RawDataPath = Join-Path $OutputDir "all_waves_raw.parquet"
 $FhnDataPath = Join-Path $OutputDir "all_fhn_data_raw.parquet"
+$env:PYTHONWARNINGS = "ignore"
 
 Write-Host "-------------------------------------------------------" -ForegroundColor Cyan
 Write-Host "ECG Classification Pipeline Automator"
