@@ -2,6 +2,16 @@
 
 This project implements a multi-step electrocardiogram-classification pipeline. Raw ECG waveforms are segmented into beats, fit with the FitzHugh-Nagumo (FHN) model, and used to train a KNN classifier to predict heartbeat categories.
 
+## Table of Contents
+
+1. [Data sources](#data-sources)
+2. [Installation + setup](#installation--setup)
+3. [Option 1: Quick start](#option-1-quick-start)
+4. [Option 2: Running the pipeline step-by-step](#option-2-running-the-pipeline-step-by-step)
+    - [Pipeline steps](#pipeline-steps)
+    - [Feature definitions](#feature-definitions)
+    - [Pipeline options](#pipeline-options)
+5. [Examples](#examples-for-individual-steps)
 ## Data sources
 The data used in this project comes from the [MIT-BIH Arrhythmia Database](https://www.kaggle.com/datasets/protobioengineering/mit-bih-arrhythmia-database-modern-2023). 
 
@@ -74,7 +84,7 @@ The above code will execute the `data_stats` and `combine` functions of the pipe
 | `model`              | Trains/evaluates KNN classifier (leave-one-record-out).           | Confusion matrix in `plots/`, metrics printed to terminal |
 
 
-## Feature definitions
+### Feature definitions
 
 In total, there are 8 features defined:  
 `a`, `b`, `tau`, `I`, `v0`, `w0`, `qrs_width`, `pt_width`.
