@@ -22,7 +22,7 @@ git clone https://github.com/yyxnlin/MAT292-final-project
 cd MAT292-final-project
 ```
 
-Alternatively, download this repository as a ```.zip``` and extract it. **The project root directory should be ```MAT292-final-project```.**:
+Alternatively, download this repository as a ```.zip``` and extract it. **The project root directory should be ```MAT292-final-project```**:
 ```
 mat292-final-project/
 ├── classification
