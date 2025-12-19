@@ -16,22 +16,25 @@ Place all downloaded CSVs in the `data/` directory before running the pipeline.
 link.
 
 ## Installation + setup
-### 1. Install dependencies
+### 1. Virtual environment (recommended)
+It is strongly recommended to use a virtual environment to ensure dependency isolation.
+
+From the project root:
 ```powershell
-pip install -r requirements.txt
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-### 2. Directory structure
-All raw input `.csv` files should be placed in:
-```
-data/
-├── xxx_ekg.csv
-├── xxx_annotations_1.csv
-...
-```
+### 2. Dependencies
+All required Python packages are listed in ```requirements.txt```.
 
-## Option 1: Quick start (using downloaded preprocessed data)
-This option is recommended if you want to reproduce figures and classification results without running the long preprocessing steps.
+When you run any of the provided PowerShell scripts (```run_*.ps1```), dependencies are automatically installed if needed using the active Python environment.
+
+
+## Data setup
+### Option 1: Preprocessed data (recommended for quick reproduction)
+To skip the most time-consuming steps (wave extraction + FHN fitting), you can download the preprocessed dataset [here](https://drive.google.com/drive/folders/1g3bKZenL-nE8pVDSUNLb76B8ccBv6Ad2?usp=drive_link):
+
 Place the downloaded ```all_fhn_data_raw.parquet``` file under the ```output``` folder:
 ```
 output/
@@ -39,58 +42,57 @@ output/
 ...
 ```
 
-To get the results for the **binary** classification model, run the following in command line:
+### Option 2: Raw data (optional, slower)
+If you want to run the entire preprocessing pipeline, place all raw ECG and annotation CSV files in:
 ```
-python -m pipeline \
-    --step filter filtered_fhn_stats balance model \
-    --data_folder data \
-    --output_folder output \
-    --plots_folder plots_binary \
-    --categories binary \
-    --method undersample \
-    --loss_threshold 0.1 \
-    --r2_threshold 0.8
+data/
+├── xxx_ekg.csv
+├── xxx_annotations_1.csv
+...
 ```
 
-To get the results for the **N/L/Other** classification model, run the following in command line:
+## Running experiments (PowerShell scripts)
+Four PowerShell scripts are provided, each corresponding to a configuration used in the report.
+All scripts automatically:
+- Install dependencies if needed
+- Skip preprocessing steps if cached files exist
+- Generate plots and tables shown in the report in configuration-specific folders
+
+
+### Available configurations
+Run the following commands from the project root.
+
+**1. Binary (Normal vs. Abnormal), all features**
+```powershell
+.\run_config_1.ps1
 ```
-python -m pipeline \
-    --step filter filtered_fhn_stats balance model \
-    --data_folder data \
-    --output_folder output \
-    --plots_folder plots_binary \
-    --categories N/L \
-    --method undersample \
-    --loss_threshold 0.1 \
-    --r2_threshold 0.8
+
+**2. Binary (Normal vs. Abnormal), FHN features only**
+```powershell
+.\run_config_2.ps1
 ```
 
-* Produces intermediate Parquet files in `output/`
-* Generates all plots and tables in `plots/`
-* **Note:** This skips the ```combine``` and ```filter``` steps as the raw data has already been downloaded.
-This is the minimal command to reproduce all results in the report.
-
-
-## Option 2: Run everything
-To run the **entire pipeline** in one command:
+**3. Binary (Normal vs. Abnormal), width features only**
+```powershell
+.\run_config_3.ps1
 ```
-python -m pipeline \
-    --step data_stats combine fhn filter filtered_fhn_stats balance model \
-    --data_folder data \
-    --output_folder output \
-    --plots_folder plots \
-    --categories binary \
-    --method undersample \
-    --loss_threshold 0.1 \
-    --r2_threshold 0.8
+
+**4. N/L/Other, all features**
+```powershell
+.\run_config_4.ps1
 ```
-* Produces intermediate Parquet files in `output/`
-* Generates plots (t-SNE, confusion matrices, counts) in `plots/`
+##  Outputs
+Each script produces:
+- Intermediate Parquet datasets in output/
+- Tables and plots (t-SNE, confusion matrices, class counts, classification reports) in corresponding ```config_*``` folder
 
-This is the minimal command to reproduce all results in the report.
+**These outputs directly reproduce the figures and results reported in the paper.**
 
-## Option 3: Running the pipeline step-by-step
-The workflow is controlled through the `--step` argument, in the following format:
+## Advanced usage (Optional)
+> ⚠️ **Do not use for standard execution.**  
+> The PowerShell scripts provided in this repository can already run experiments.
+> 
+The pipeline itself can be run with ```pipeline.py``` and controlled through the `--step` argument, in the following format:
 ```
 python -m pipeline --step <steps...> [options]
 ```
