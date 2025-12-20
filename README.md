@@ -5,7 +5,7 @@ This project implements a multi-step electrocardiogram-classification pipeline. 
 The data used in this project comes from the [MIT-BIH Arrhythmia Database](https://www.kaggle.com/datasets/protobioengineering/mit-bih-arrhythmia-database-modern-2023). 
 
 ## 1. Installation + setup
-### I. Cloning the repository
+### 1.1. Cloning the repository
 Clone this repository to your local machine:
 
 ```bash
@@ -24,7 +24,7 @@ mat292-final-project/
 ...
 ```
 
-### II. Virtual environment (recommended)
+### 1.2. Virtual environment (recommended)
 It is strongly recommended to use a virtual environment to ensure dependency isolation.
 
 From the **root directory**:
@@ -33,7 +33,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-### III. Dependencies
+### 1.3. Dependencies
 All required Python packages are listed in ```requirements.txt```.
 
 After activating the virtual environment, install dependencies by running the following command:
@@ -45,7 +45,7 @@ python -m pip install -r requirements.txt
 ### Option A: Preprocessed data (recommended for quick reproduction)
 To skip the most time-consuming steps (wave extraction + FHN fitting), you can **download the preprocessed dataset** from the Google Drive link above (also [here](https://drive.google.com/drive/folders/1g3bKZenL-nE8pVDSUNLb76B8ccBv6Ad2?usp=drive_link)):
 
-You **must** place the ```/data``` and ```/output``` folders **under your root directory**, with the proper names.
+You **must** place the extracted ```/data``` and ```/output``` folders **under your root directory**, with the proper names.
 
 Your folder structure should now look like this:
 ```
@@ -58,6 +58,7 @@ mat292-final-project/
 ...
 ├── output/                        <---- downloaded output folder
   ├── all_fhn_data_raw.parquet
+  ├── all_waves_raw.parquet
 ...
 ├── pipeline.py
 ...
