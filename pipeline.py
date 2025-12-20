@@ -351,7 +351,10 @@ def main():
         )
 
 
-    
+    print("\n=======================================================")
+    print("Pipeline completed successfully.")
+    print(f"Outputs saved in:          {os.path.abspath(args.plots_folder)}")
+    print("=======================================================\n")
 
 if __name__ == "__main__":
     main()
