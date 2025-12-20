@@ -20,7 +20,7 @@ mat292-final-project/
 ├── demo
 ...
 ├── pipeline.py
-├── run.ps1
+├── run.py
 ...
 ```
 
@@ -81,7 +81,9 @@ mat292-final-project/
 
 ## 3. Running configurations
 ### Option 1 (Recommended): Running experiments with Python
-Run the following commands from the project root.
+All experiment configurations are defined in ```run.py```, which calls the main ```pipeline.py``` module.
+
+Run the following commands **from the project root directory**.
 
 **1. Binary (Normal vs. Abnormal), all features**
 ```
